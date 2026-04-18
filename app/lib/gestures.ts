@@ -66,17 +66,21 @@ export function detectGesture(
   if (iUp && !mUp && !rUp && !pUp && !tUp && !tOut)
     return { id: 'one', label: '1', category: 'number', emoji: '☝️' };
 
-  // --- Command gestures ---
+  // --- Command gestures (checked before letters to avoid collisions) ---
   if (tUp && !iUp && !mUp && !rUp && !pUp && !tOut)
     return { id: 'thumbsup', label: 'SPEAK', category: 'command', emoji: '👍' };
   if (tDown && !iUp && !mUp && !rUp && !pUp)
     return { id: 'thumbsdown', label: 'BACK', category: 'command', emoji: '👎' };
 
+  // CLEAR: index + pinky extended (rock-on / horns shape) — no thumb, no middle, no ring
+  if (iUp && !mUp && !rUp && pUp && !tUp && !tOut)
+    return { id: 'clear', label: 'CLEAR', category: 'command', emoji: '🤘' };
+
   // --- Letter gestures ---
   // A: closed fist with thumb extended sideways
   if (!iUp && !mUp && !rUp && !pUp && tOut)
     return { id: 'A', label: 'A', category: 'letter', emoji: '✊' };
-  // I: pinky only
+  // I: pinky only (no index)
   if (!iUp && !mUp && !rUp && pUp && !tUp)
     return { id: 'I', label: 'I', category: 'letter', emoji: '🤙' };
   // L: index up + thumb extended sideways
@@ -110,14 +114,14 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     label: 'L',
     category: 'letter',
     emoji: '👆',
-    description: 'Index up + thumb out sideways (gun shape)',
+    description: 'Index up + thumb out sideways (L-shape)',
   },
   {
     id: 'Y',
     label: 'Y',
     category: 'letter',
     emoji: '🤙',
-    description: 'Thumb + pinky extended (hang loose / shaka)',
+    description: 'Thumb + pinky extended (hang loose)',
   },
   // Numbers
   {
@@ -139,7 +143,7 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     label: '3',
     category: 'number',
     emoji: '3️⃣',
-    description: 'Index + middle + ring fingers up',
+    description: 'Index + middle + ring up',
   },
   {
     id: 'four',
@@ -154,14 +158,14 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     label: 'SPACE',
     category: 'command',
     emoji: '✋',
-    description: 'Open hand (all 5 fingers up) — inserts a space',
+    description: 'Open hand — inserts a space',
   },
   {
     id: 'thumbsup',
     label: 'SPEAK',
     category: 'command',
     emoji: '👍',
-    description: 'Thumbs up — speaks the current sentence aloud',
+    description: 'Thumbs up — speaks the sentence aloud',
   },
   {
     id: 'thumbsdown',
@@ -170,4 +174,12 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     emoji: '👎',
     description: 'Thumbs down — deletes the last character',
   },
+  {
+    id: 'clear',
+    label: 'CLEAR',
+    category: 'command',
+    emoji: '🤘',
+    description: 'Rock-on (index + pinky) — clears the sentence',
+  },
 ];
+

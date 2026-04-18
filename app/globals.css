@@ -13,6 +13,9 @@ body {
 
 :root {
   color-scheme: dark;
+  --brand-cyan: #06b6d4;
+  --brand-cyan-glow: rgba(6, 182, 212, 0.4);
+  --brand-violet: #7c3aed;
 }
 
 body {
@@ -42,6 +45,16 @@ button, a, input, select, textarea {
 /* Suppress default focus ring (replaced above) */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ── Status dot glow when active ── */
+.status-dot-active {
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3), 0 0 8px 2px rgba(6, 182, 212, 0.5);
+}
+
+/* ── Speak button glow when speaking ── */
+.speaking-glow {
+  box-shadow: 0 0 12px 2px rgba(6, 182, 212, 0.6);
 }
 
 /* ── Reduced motion — disable decorative animations ── */
