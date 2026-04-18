@@ -1,232 +1,268 @@
-"use client";
+'use client';
+import { useState, useCallback } from 'react';
+import CameraView from './components/CameraView';
+import SentenceBuilder from './components/SentenceBuilder';
+import QuickPhrases from './components/QuickPhrases';
+import ConversationLog, { type Message } from './components/ConversationLog';
+import GestureGuide from './components/GestureGuide';
+import { useSpeech } from './hooks/useSpeech';
+import type { GestureResult } from './lib/gestures';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import Script from 'next/script';
+type Tab = 'builder' | 'phrases' | 'guide' | 'log';
 
-// --- Speech Hook ---
-const useSpeech = () => {
-  const speak = useCallback((text: string) => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
-  return { speak };
-};
-
-// --- Phrases Data ---
-const phrases = [
-  { text: "Hello", icon: "👋" }, { text: "Thank You", icon: "🙏" },
-  { text: "Yes", icon: "✅" }, { text: "No", icon: "❌" },
-  { text: "I need water", icon: "💧" }, { text: "I need help", icon: "🆘" },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'builder', label: 'Builder', icon: '✏️' },
+  { id: 'phrases', label: 'Phrases', icon: '💬' },
+  { id: 'guide',   label: 'Guide',   icon: '📖' },
+  { id: 'log',     label: 'Log',     icon: '📋' },
 ];
 
-// --- Quick Phrases Component ---
-function QuickPhrases({ onSpeak }: { onSpeak: (text: string) => void }) {
-  const { speak } = useSpeech();
-  return (
-    <div className="grid grid-cols-2 gap-3 w-full">
-      {phrases.map((p) => (
-        <button key={p.text} onClick={() => { speak(p.text); onSpeak(p.text); }} 
-          className="bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg p-3 flex items-center gap-2 transition-all hover:scale-105"
-        >
-          <span className="text-2xl">{p.icon}</span>
-          <span className="text-sm font-medium text-white">{p.text}</span>
-        </button>
-      ))}
-    </div>
-  );
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-// --- Camera Component ---
-function CameraView({ onDetect }: { onDetect: (text: string) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isReady, setIsReady] = useState(false);
-  const handsInstance = useRef<any>(null);
-  const animationFrameId = useRef<number | null>(null);
-  const lastSpokenTime = useRef(0);
+export default function GestureTalkApp() {
   const { speak } = useSpeech();
 
-  const detectGesture = (lms: any) => {
-    const thumb = { tip: lms[4], ip: lms[3], mcp: lms[2] };
-    const index = { tip: lms[8], pip: lms[6] };
-    const middle = { tip: lms[12], pip: lms[10] };
-    const ring = { tip: lms[16], pip: lms[14] };
-    const pinky = { tip: lms[20], pip: lms[18] };
+  // Sentence being built letter-by-letter via gestures
+  const [sentence, setSentence] = useState('');
+  // Manual type-to-speak input
+  const [typedInput, setTypedInput] = useState('');
+  // Conversation history (capped at 50)
+  const [messages, setMessages] = useState<Message[]>([]);
+  // Active right-panel tab
+  const [activeTab, setActiveTab] = useState<Tab>('builder');
+  // Currently detected gesture + dwell progress
+  const [currentGesture, setCurrentGesture] = useState<GestureResult | null>(null);
+  const [dwellProgress, setDwellProgress] = useState(0);
 
-    const isUp = (f: any) => f.tip.y < f.pip.y - 0.03;
-    const thumbUp = thumb.tip.y < thumb.ip.y;
-    const thumbOut = thumb.tip.x < thumb.mcp.x - 0.1;
+  /* ── Helpers ── */
+  const addMessage = useCallback(
+    (text: string, source: Message['source']) => {
+      setMessages((prev) => [
+        ...prev.slice(-49),
+        { id: makeId(), text, source, timestamp: new Date() },
+      ]);
+    },
+    [],
+  );
 
-    const indexUp = isUp(index);
-    const middleUp = isUp(middle);
-    const ringUp = isUp(ring);
-    const pinkyUp = isUp(pinky);
+  const speakAndLog = useCallback(
+    (text: string, source: Message['source']) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      speak(trimmed);
+      addMessage(trimmed, source);
+    },
+    [speak, addMessage],
+  );
 
-    if (indexUp && middleUp && !ringUp && !pinkyUp) return "Two";
-    if (indexUp && !middleUp && !ringUp && !pinkyUp && !thumbUp) return "One";
-    if (thumbUp && pinkyUp && !indexUp && !middleUp && !ringUp) return "Y";
-    if (thumbUp && indexUp && !middleUp && !ringUp && !pinkyUp) return "L";
-    if (pinkyUp && !ringUp && !middleUp && !indexUp) return "I";
-    if (!indexUp && !middleUp && !ringUp && !pinkyUp && thumbOut) return "A";
-    if (indexUp && middleUp && ringUp && pinkyUp && thumbUp) return "Five";
-    
-    return null;
-  };
-
-  const onResults = (results: any) => {
-    if (!canvasRef.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-    const w = canvasRef.current.width;
-    const h = canvasRef.current.height;
-
-    ctx.save();
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(results.image, 0, 0, w, h);
-
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      const lms = results.multiHandLandmarks[0];
-      const Hands = (window as any).Hands;
-      const drawConnectors = (window as any).drawConnectors;
-      if (drawConnectors && Hands) {
-        drawConnectors(ctx, lms, Hands.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
-      }
-
-      const gesture = detectGesture(lms);
-      if (gesture) {
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 4;
-        const x = lms[12].x * w;
-        const y = lms[12].y * h - 50;
-        ctx.strokeText(gesture, x, y);
-        ctx.fillText(gesture, x, y);
-
-        const now = Date.now();
-        if (now - lastSpokenTime.current > 2000) {
-          speak(gesture);
-          onDetect(gesture);
-          lastSpokenTime.current = now;
+  /* ── Camera callbacks ── */
+  const handleConfirm = useCallback(
+    (gesture: GestureResult) => {
+      if (gesture.category === 'command') {
+        if (gesture.id === 'five') {
+          // Open hand = SPACE
+          setSentence((prev) => (prev.endsWith(' ') ? prev : prev + ' '));
+        } else if (gesture.id === 'thumbsup') {
+          // Thumbs up = SPEAK
+          setSentence((prev) => {
+            const trimmed = prev.trim();
+            if (trimmed) speakAndLog(trimmed, 'gesture');
+            return prev;
+          });
+        } else if (gesture.id === 'thumbsdown') {
+          // Thumbs down = BACKSPACE
+          setSentence((prev) => prev.slice(0, -1));
         }
+      } else {
+        // Letter or number — append to sentence
+        setSentence((prev) => prev + gesture.label);
       }
-    }
-    ctx.restore();
-  };
-
-  useEffect(() => {
-    if (!isReady) return;
-    const Hands = (window as any).Hands;
-    if (!Hands) return;
-
-    const hands = new Hands({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
-    hands.onResults(onResults);
-    handsInstance.current = hands;
-
-    navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } }).then(stream => {
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        const processFrame = async () => {
-          if (videoRef.current && handsInstance.current) await handsInstance.current.send({ image: videoRef.current });
-          animationFrameId.current = requestAnimationFrame(processFrame);
-        };
-        processFrame();
-      }
-    });
-    return () => { if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current); };
-  }, [isReady]);
-
-  return (
-    <div className="relative w-full h-full bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
-       <Script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" strategy="afterInteractive" />
-       <Script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" strategy="afterInteractive" onLoad={() => setIsReady(true)} />
-       
-       {!isReady && (
-         <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/80 z-10 gap-4">
-           <div className="w-8 h-8 border-4 border-t-blue-500 rounded-full animate-spin"></div>
-           <span>Initializing Camera...</span>
-         </div>
-       )}
-       
-       <video ref={videoRef} className="hidden" autoPlay playsInline />
-       <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full object-cover transform scale-x-[-1]" />
-    </div>
+    },
+    [speakAndLog],
   );
-}
 
-// --- Main Page ---
-export default function CommunicationApp() {
-  const [history, setHistory] = useState<string[]>([]);
-  const [inputText, setInputText] = useState("");
-  const { speak } = useSpeech();
+  const handleGestureChange = useCallback(
+    (gesture: GestureResult | null, progress: number) => {
+      setCurrentGesture(gesture);
+      setDwellProgress(progress);
+    },
+    [],
+  );
 
-  const handleNewMessage = (text: string) => {
-    setHistory((prev) => [text, ...prev.slice(0, 10)]);
-  };
+  /* ── Builder actions ── */
+  const handleSpeak = useCallback(() => {
+    speakAndLog(sentence, 'gesture');
+  }, [sentence, speakAndLog]);
 
-  const handleManualSpeak = () => {
-    if (inputText.trim()) {
-      speak(inputText);
-      handleNewMessage(inputText);
-      setInputText("");
-    }
-  };
+  const handleClear = useCallback(() => setSentence(''), []);
+  const handleBackspace = useCallback(
+    () => setSentence((prev) => prev.slice(0, -1)),
+    [],
+  );
+
+  /* ── Type to speak ── */
+  const handleTypedSpeak = useCallback(() => {
+    speakAndLog(typedInput, 'typed');
+    setTypedInput('');
+  }, [typedInput, speakAndLog]);
+
+  /* ── Quick phrase ── */
+  const handlePhrase = useCallback(
+    (text: string) => speakAndLog(text, 'phrase'),
+    [speakAndLog],
+  );
+
+  /* ── Repeat from log ── */
+  const handleRepeat = useCallback((text: string) => speak(text), [speak]);
+
+  /* ── Derived ── */
+  const isDetecting = currentGesture !== null;
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col md:flex-row font-sans">
-      
-      {/* Left: Camera */}
-      <div className="w-full md:w-3/5 h-[60vh] md:h-screen relative flex flex-col">
-        <CameraView onDetect={handleNewMessage} />
-        
-        {/* History */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 max-h-40 overflow-y-auto z-20">
-          <div className="text-xs text-gray-400 uppercase mb-2">Conversation Log</div>
-          <div className="flex flex-wrap gap-2">
-            {history.map((msg, i) => (
-              <div key={i} className="bg-white/10 rounded px-3 py-1 text-sm">{msg}</div>
+    <main className="h-screen bg-gray-950 text-white flex flex-col overflow-hidden">
+
+      {/* ── Header ── */}
+      <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl" aria-hidden>🤟</span>
+          <div>
+            <h1 className="text-base font-bold leading-tight">GestureTalk</h1>
+            <p className="text-xs text-gray-500">Sign Language → Voice & Text</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              isDetecting ? 'bg-cyan-400 animate-pulse' : 'bg-gray-600'
+            }`}
+          />
+          <span>{isDetecting ? `Detecting: ${currentGesture?.label}` : 'Watching…'}</span>
+        </div>
+      </header>
+
+      {/* ── Body ── */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+
+        {/* Camera panel (left) */}
+        <div className="w-full md:w-3/5 h-[45vh] md:h-full flex-shrink-0">
+          <CameraView
+            onConfirm={handleConfirm}
+            onGestureChange={handleGestureChange}
+          />
+        </div>
+
+        {/* Control panel (right) */}
+        <div className="flex-1 flex flex-col bg-gray-900 border-t md:border-t-0 md:border-l border-gray-800 overflow-hidden min-h-0">
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-800 flex-shrink-0">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-2.5 text-xs flex flex-col items-center gap-0.5 transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-cyan-400 border-b-2 border-cyan-500 bg-gray-800/40'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <span aria-hidden>{tab.icon}</span>
+                <span>{tab.label}</span>
+                {tab.id === 'log' && messages.length > 0 && (
+                  <span className="text-[10px] bg-cyan-800 text-cyan-200 rounded-full px-1 leading-tight">
+                    {messages.length}
+                  </span>
+                )}
+              </button>
             ))}
-            {history.length === 0 && <span className="text-gray-500 text-sm italic">Waiting for input...</span>}
           </div>
-        </div>
-      </div>
 
-      {/* Right: Controls */}
-      <div className="w-full md:w-2/5 bg-slate-900 border-l border-slate-700 p-6 flex flex-col gap-6 overflow-y-auto">
-        
-        <div>
-          <h1 className="text-2xl font-bold text-blue-400">TalkBox</h1>
-          <p className="text-sm text-gray-400">Communication Assistant</p>
-        </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
 
-        {/* Type to Speak */}
-        <div className="space-y-3">
-          <h2 className="text-xs uppercase text-gray-500 font-bold">Type to Speak</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleManualSpeak()}
-              placeholder="Type anything..."
-              className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-white"
-            />
-            <button onClick={handleManualSpeak} className="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition-colors">
-              Speak
-            </button>
+            {/* ── Builder tab ── */}
+            {activeTab === 'builder' && (
+              <div className="flex flex-col gap-5">
+                <SentenceBuilder
+                  text={sentence}
+                  currentGesture={currentGesture}
+                  progress={dwellProgress}
+                  onSpeak={handleSpeak}
+                  onClear={handleClear}
+                  onBackspace={handleBackspace}
+                />
+
+                {/* Type to speak */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs uppercase text-gray-500 font-bold">
+                    ⌨️ Type to Speak
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={typedInput}
+                      onChange={(e) => setTypedInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTypedSpeak()}
+                      placeholder="Type anything…"
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-cyan-600 placeholder-gray-600"
+                    />
+                    <button
+                      onClick={handleTypedSpeak}
+                      disabled={!typedInput.trim()}
+                      className="bg-cyan-700 hover:bg-cyan-600 disabled:bg-gray-700 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                    >
+                      🔊
+                    </button>
+                  </div>
+                </div>
+
+                {/* Recent messages (preview) */}
+                {messages.length > 0 && (
+                  <div>
+                    <div className="text-xs uppercase text-gray-500 font-bold mb-2">
+                      Recent Messages
+                    </div>
+                    <ConversationLog
+                      messages={messages.slice(-4)}
+                      onRepeat={handleRepeat}
+                      maxHeight="140px"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Phrases tab ── */}
+            {activeTab === 'phrases' && (
+              <QuickPhrases onSpeak={handlePhrase} />
+            )}
+
+            {/* ── Guide tab ── */}
+            {activeTab === 'guide' && <GestureGuide />}
+
+            {/* ── Log tab ── */}
+            {activeTab === 'log' && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase text-gray-500 font-bold">
+                    Conversation History
+                  </span>
+                  {messages.length > 0 && (
+                    <button
+                      onClick={() => setMessages([])}
+                      className="text-xs text-red-500 hover:text-red-400 transition-colors"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+                <ConversationLog messages={messages} onRepeat={handleRepeat} maxHeight="100%" />
+              </div>
+            )}
+
           </div>
-        </div>
-
-        {/* Quick Phrases */}
-        <div className="space-y-3">
-          <h2 className="text-xs uppercase text-gray-500 font-bold">Quick Phrases</h2>
-          <QuickPhrases onSpeak={handleNewMessage} />
         </div>
       </div>
     </main>
