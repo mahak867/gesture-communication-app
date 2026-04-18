@@ -61,6 +61,9 @@ export function detectGesture(
     return { id: 'four', label: '4', category: 'number', emoji: '4️⃣' };
   if (iUp && mUp && rUp && !pUp)
     return { id: 'three', label: '3', category: 'number', emoji: '3️⃣' };
+  // K: index + middle up with thumb out — checked before "2" so tOut differentiates them
+  if (iUp && mUp && !rUp && !pUp && tOut)
+    return { id: 'K', label: 'K', category: 'letter', emoji: '✌️' };
   if (iUp && mUp && !rUp && !pUp)
     return { id: 'two', label: '2', category: 'number', emoji: '✌️' };
   if (iUp && !mUp && !rUp && !pUp && !tUp && !tOut)
@@ -80,6 +83,9 @@ export function detectGesture(
   // A: closed fist with thumb extended sideways
   if (!iUp && !mUp && !rUp && !pUp && tOut)
     return { id: 'A', label: 'A', category: 'letter', emoji: '✊' };
+  // F: middle + ring + pinky up, index and thumb folded (index curls to touch thumb)
+  if (!iUp && mUp && rUp && pUp && !tUp && !tOut)
+    return { id: 'F', label: 'F', category: 'letter', emoji: '🖖' };
   // I: pinky only (no index)
   if (!iUp && !mUp && !rUp && pUp && !tUp)
     return { id: 'I', label: 'I', category: 'letter', emoji: '🤙' };
@@ -103,11 +109,25 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     description: 'Fist with thumb pointing to the side',
   },
   {
+    id: 'F',
+    label: 'F',
+    category: 'letter',
+    emoji: '🖖',
+    description: 'Middle + ring + pinky up; index curls to touch thumb',
+  },
+  {
     id: 'I',
     label: 'I',
     category: 'letter',
     emoji: '🤙',
     description: 'Pinky finger up, all others folded',
+  },
+  {
+    id: 'K',
+    label: 'K',
+    category: 'letter',
+    emoji: '✌️',
+    description: 'Index + middle up with thumb pointing sideways',
   },
   {
     id: 'L',
@@ -123,7 +143,7 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
     emoji: '🤙',
     description: 'Thumb + pinky extended (hang loose)',
   },
-  // Numbers
+  // Numbers (note: 2=V, 3=W, 4=B share the same hand shape)
   {
     id: 'one',
     label: '1',
@@ -133,24 +153,24 @@ export const GESTURE_GUIDE: GestureGuideEntry[] = [
   },
   {
     id: 'two',
-    label: '2',
+    label: '2 / V',
     category: 'number',
     emoji: '✌️',
-    description: 'Index + middle up (peace sign)',
+    description: 'Index + middle up (peace sign) — also used for ASL V',
   },
   {
     id: 'three',
-    label: '3',
+    label: '3 / W',
     category: 'number',
     emoji: '3️⃣',
-    description: 'Index + middle + ring up',
+    description: 'Index + middle + ring up — also used for ASL W',
   },
   {
     id: 'four',
-    label: '4',
+    label: '4 / B',
     category: 'number',
     emoji: '4️⃣',
-    description: 'All 4 fingers up, thumb tucked',
+    description: 'All 4 fingers up, thumb tucked — also used for ASL B',
   },
   // Commands
   {

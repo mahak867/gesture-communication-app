@@ -1,9 +1,9 @@
 'use client';
-import { useState, useCallback, useRef, useId } from 'react';
+import { useReducer, useCallback, useRef, useId, useEffect, useState } from 'react';
 import CameraView from './components/CameraView';
 import SentenceBuilder from './components/SentenceBuilder';
 import QuickPhrases from './components/QuickPhrases';
-import ConversationLog, { type Message } from './components/ConversationLog';
+import ConversationLog from './components/ConversationLog';
 import GestureGuide from './components/GestureGuide';
 import VoiceSettings from './components/VoiceSettings';
 import StatsPanel from './components/StatsPanel';
@@ -11,6 +11,7 @@ import OnboardingOverlay, { shouldShowOnboarding } from './components/Onboarding
 import { useSpeech } from './hooks/useSpeech';
 import { useStats } from './hooks/useStats';
 import { useCustomPhrases } from './hooks/useCustomPhrases';
+import { useConversationLog } from './hooks/useConversationLog';
 import type { GestureResult } from './lib/gestures';
 
 type Tab = 'builder' | 'phrases' | 'guide' | 'log' | 'settings';
@@ -23,30 +24,68 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
-function makeId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// ── Sentence state with undo history ─────────────────────────────────────────
+interface SentenceState {
+  current: string;
+  history: string[];
+}
+
+type SentenceAction =
+  | { type: 'append'; char: string }
+  | { type: 'space' }
+  | { type: 'backspace' }
+  | { type: 'clear' }
+  | { type: 'undo' };
+
+function sentenceReducer(state: SentenceState, action: SentenceAction): SentenceState {
+  const pushHistory = () => [...state.history.slice(-29), state.current];
+  switch (action.type) {
+    case 'append':
+      return { current: state.current + action.char, history: pushHistory() };
+    case 'space':
+      if (state.current.endsWith(' ')) return state;
+      return { current: state.current + ' ', history: pushHistory() };
+    case 'backspace':
+      if (state.current.length === 0) return state;
+      return { current: state.current.slice(0, -1), history: pushHistory() };
+    case 'clear':
+      if (state.current === '') return state;
+      return { current: '', history: pushHistory() };
+    case 'undo':
+      if (state.history.length === 0) return state;
+      return {
+        current: state.history[state.history.length - 1],
+        history: state.history.slice(0, -1),
+      };
+  }
 }
 
 export default function GestureTalkApp() {
   const { speak, stop, voices, isSpeaking, updateSettings } = useSpeech();
   const { stats, incrementGesture, incrementMessage } = useStats();
   const { phrases: customPhrases, addPhrase, removePhrase } = useCustomPhrases();
+  const { messages, addMessage, clearMessages } = useConversationLog();
   const tabsId = useId();
+
+  // Sentence builder with undo history
+  const [sentenceState, dispatchSentence] = useReducer(sentenceReducer, {
+    current: '',
+    history: [],
+  });
+  const sentence = sentenceState.current;
+  const canUndo = sentenceState.history.length > 0;
 
   // Onboarding: shown once on first visit
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
 
-  // Sentence being built letter-by-letter via gestures
-  const [sentence, setSentence] = useState('');
   // Manual type-to-speak input
   const [typedInput, setTypedInput] = useState('');
-  // Conversation history (capped at 50)
-  const [messages, setMessages] = useState<Message[]>([]);
   // Active right-panel tab
   const [activeTab, setActiveTab] = useState<Tab>('builder');
   // Currently detected gesture + dwell progress
   const [currentGesture, setCurrentGesture] = useState<GestureResult | null>(null);
   const [dwellProgress, setDwellProgress] = useState(0);
+
   // Configurable dwell time in ms (persisted to localStorage)
   const [dwellMs, setDwellMs] = useState<number>(() => {
     if (typeof window === 'undefined') return 1500;
@@ -56,24 +95,39 @@ export default function GestureTalkApp() {
     } catch { return 1500; }
   });
 
+  // Auto-speak: speak + clear sentence after N seconds of inactivity
+  const [autoSpeak, setAutoSpeak] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return localStorage.getItem('gesturetalk-autospeak') === 'true'; } catch { return false; }
+  });
+
+  // Text size: CSS font-size multiplier (1 / 1.25 / 1.5)
+  const [fontSize, setFontSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    try {
+      const v = localStorage.getItem('gesturetalk-fontsize');
+      return v ? Number(v) : 1;
+    } catch { return 1; }
+  });
+
+  // Refs for stable callbacks inside timers / effects
+  const autoSpeakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSpeakRef = useRef(autoSpeak);
+  useEffect(() => { autoSpeakRef.current = autoSpeak; }, [autoSpeak]);
+
+  // Ref to always hold the latest sentence (avoids stale closures in timers)
+  const sentenceRef = useRef(sentence);
+  useEffect(() => { sentenceRef.current = sentence; }, [sentence]);
+
   // Refs for tab buttons (keyboard arrow-key navigation)
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
     builder: null, phrases: null, guide: null, log: null, settings: null,
   });
 
   /* ── Helpers ── */
-  const addMessage = useCallback(
-    (text: string, source: Message['source']) => {
-      setMessages((prev) => [
-        ...prev.slice(-49),
-        { id: makeId(), text, source, timestamp: new Date() },
-      ]);
-    },
-    [],
-  );
-
-  const speakAndLog = useCallback(
-    (text: string, source: Message['source']) => {
+  // Stable speak-and-log ref so it can be called from timer callbacks
+  const speakAndLogFn = useCallback(
+    (text: string, source: 'gesture' | 'phrase' | 'typed') => {
       const trimmed = text.trim();
       if (!trimmed) return;
       speak(trimmed);
@@ -82,30 +136,45 @@ export default function GestureTalkApp() {
     },
     [speak, addMessage, incrementMessage],
   );
+  const speakAndLogRef = useRef(speakAndLogFn);
+  useEffect(() => { speakAndLogRef.current = speakAndLogFn; }, [speakAndLogFn]);
 
   /* ── Camera callbacks ── */
   const handleConfirm = useCallback(
     (gesture: GestureResult) => {
       incrementGesture();
+
       if (gesture.category === 'command') {
         if (gesture.id === 'five') {
-          setSentence((prev) => (prev.endsWith(' ') ? prev : prev + ' '));
+          dispatchSentence({ type: 'space' });
         } else if (gesture.id === 'thumbsup') {
-          setSentence((prev) => {
-            const trimmed = prev.trim();
-            if (trimmed) speakAndLog(trimmed, 'gesture');
-            return prev;
-          });
+          // Use sentenceRef to avoid stale closure; speak then clear
+          if (sentenceRef.current.trim()) {
+            speakAndLogRef.current(sentenceRef.current.trim(), 'gesture');
+            dispatchSentence({ type: 'clear' });
+          }
         } else if (gesture.id === 'thumbsdown') {
-          setSentence((prev) => prev.slice(0, -1));
+          dispatchSentence({ type: 'backspace' });
         } else if (gesture.id === 'clear') {
-          setSentence('');
+          dispatchSentence({ type: 'clear' });
         }
       } else {
-        setSentence((prev) => prev + gesture.label);
+        dispatchSentence({ type: 'append', char: gesture.label });
+      }
+
+      // Auto-speak: reset inactivity timer on every confirmed gesture
+      if (autoSpeakTimerRef.current) clearTimeout(autoSpeakTimerRef.current);
+      if (autoSpeakRef.current) {
+        autoSpeakTimerRef.current = setTimeout(() => {
+          const current = sentenceRef.current.trim();
+          if (current) {
+            speakAndLogRef.current(current, 'gesture');
+            dispatchSentence({ type: 'clear' });
+          }
+        }, 3000);
       }
     },
-    [speakAndLog, incrementGesture],
+    [incrementGesture],
   );
 
   const handleGestureChange = useCallback(
@@ -118,26 +187,24 @@ export default function GestureTalkApp() {
 
   /* ── Builder actions ── */
   const handleSpeak = useCallback(() => {
-    speakAndLog(sentence, 'gesture');
-  }, [sentence, speakAndLog]);
+    if (sentenceRef.current.trim()) speakAndLogRef.current(sentenceRef.current.trim(), 'gesture');
+  }, []);
 
-  const handleClear = useCallback(() => setSentence(''), []);
-  const handleBackspace = useCallback(
-    () => setSentence((prev) => prev.slice(0, -1)),
-    [],
-  );
+  const handleClear    = useCallback(() => dispatchSentence({ type: 'clear' }), []);
+  const handleBackspace = useCallback(() => dispatchSentence({ type: 'backspace' }), []);
+  const handleUndo     = useCallback(() => dispatchSentence({ type: 'undo' }), []);
 
   /* ── Type to speak ── */
   const typedInputId = `${tabsId}-typed`;
   const handleTypedSpeak = useCallback(() => {
-    speakAndLog(typedInput, 'typed');
+    speakAndLogRef.current(typedInput, 'typed');
     setTypedInput('');
-  }, [typedInput, speakAndLog]);
+  }, [typedInput]);
 
   /* ── Quick phrase ── */
   const handlePhrase = useCallback(
-    (text: string) => speakAndLog(text, 'phrase'),
-    [speakAndLog],
+    (text: string) => speakAndLogRef.current(text, 'phrase'),
+    [],
   );
 
   /* ── Repeat from log ── */
@@ -153,6 +220,57 @@ export default function GestureTalkApp() {
   const handleDwellChange = useCallback((ms: number) => {
     setDwellMs(ms);
     try { localStorage.setItem('gesturetalk-dwell-ms', String(ms)); } catch { /* ignore */ }
+  }, []);
+
+  /* ── Auto-speak toggle ── */
+  const handleAutoSpeakToggle = useCallback((enabled: boolean) => {
+    setAutoSpeak(enabled);
+    try { localStorage.setItem('gesturetalk-autospeak', String(enabled)); } catch { /* ignore */ }
+    if (!enabled && autoSpeakTimerRef.current) {
+      clearTimeout(autoSpeakTimerRef.current);
+    }
+  }, []);
+
+  /* ── Font size change ── */
+  const handleFontSizeChange = useCallback((size: number) => {
+    setFontSize(size);
+    try { localStorage.setItem('gesturetalk-fontsize', String(size)); } catch { /* ignore */ }
+  }, []);
+
+  /* ── Keyboard shortcuts ── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't intercept when the user is typing in a text input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) return;
+
+      if (e.key === ' ' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        const cur = sentenceRef.current.trim();
+        if (cur && !isSpeaking) speakAndLogRef.current(cur, 'gesture');
+      } else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        dispatchSentence({ type: 'backspace' });
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        dispatchSentence({ type: 'clear' });
+      } else if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        dispatchSentence({ type: 'undo' });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isSpeaking]);
+
+  // Clean up auto-speak timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSpeakTimerRef.current) clearTimeout(autoSpeakTimerRef.current);
+    };
   }, []);
 
   /* ── Tab keyboard navigation (ARIA APG roving tabindex pattern) ── */
@@ -230,6 +348,16 @@ export default function GestureTalkApp() {
               ? `Detecting: ${currentGesture?.label}`
               : 'Watching…'}
           </span>
+
+          {/* Auto-speak indicator */}
+          {autoSpeak && (
+            <span
+              className="hidden sm:inline text-[10px] bg-violet-900/50 border border-violet-800/60 text-violet-300 px-2 py-0.5 rounded-full"
+              aria-label="Auto-speak enabled"
+            >
+              ⚡ Auto
+            </span>
+          )}
 
           {/* Stop speech button (visible only while speaking) */}
           {isSpeaking && (
@@ -330,6 +458,9 @@ export default function GestureTalkApp() {
                         onSpeak={handleSpeak}
                         onClear={handleClear}
                         onBackspace={handleBackspace}
+                        onUndo={handleUndo}
+                        canUndo={canUndo}
+                        fontSize={fontSize}
                       />
 
                       {/* Type to speak */}
@@ -360,7 +491,7 @@ export default function GestureTalkApp() {
                           </button>
                         </div>
                         <p id={`${typedInputId}-hint`} className="text-xs text-gray-600">
-                          Press Enter or the speaker button to read aloud
+                          Press Enter or the speaker button to read aloud · Keyboard shortcuts: Space=Speak, Backspace=Delete, Esc=Clear, Ctrl+Z=Undo
                         </p>
                       </div>
 
@@ -374,6 +505,7 @@ export default function GestureTalkApp() {
                             messages={messages.slice(-4)}
                             onRepeat={handleRepeat}
                             maxHeight="140px"
+                            fontSize={fontSize}
                           />
                         </div>
                       )}
@@ -387,6 +519,7 @@ export default function GestureTalkApp() {
                       customPhrases={customPhrases}
                       onAddPhrase={addPhrase}
                       onRemovePhrase={removePhrase}
+                      currentSentence={sentence}
                     />
                   )}
 
@@ -402,7 +535,7 @@ export default function GestureTalkApp() {
                         </span>
                         {messages.length > 0 && (
                           <button
-                            onClick={() => setMessages([])}
+                            onClick={clearMessages}
                             aria-label="Clear all conversation history"
                             className="text-xs text-red-500 hover:text-red-400 transition-colors min-h-[44px] px-2"
                           >
@@ -415,6 +548,7 @@ export default function GestureTalkApp() {
                         onRepeat={handleRepeat}
                         maxHeight="100%"
                         showExport={messages.length > 0}
+                        fontSize={fontSize}
                       />
                     </div>
                   )}
@@ -456,6 +590,59 @@ export default function GestureTalkApp() {
                           <p className="text-[11px] text-gray-600 leading-relaxed">
                             How long you must hold a gesture before it is confirmed. Reduce for faster input; increase to avoid accidental triggers.
                           </p>
+                        </div>
+                      </div>
+
+                      {/* Auto-speak toggle */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">⚡ Auto-Speak</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Auto-speak after 3 s of inactivity</span>
+                            <button
+                              role="switch"
+                              aria-checked={autoSpeak}
+                              onClick={() => handleAutoSpeakToggle(!autoSpeak)}
+                              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 ${autoSpeak ? 'bg-cyan-600' : 'bg-gray-700'}`}
+                              aria-label="Toggle auto-speak mode"
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${autoSpeak ? 'translate-x-5' : 'translate-x-0'}`}
+                              />
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">
+                            When enabled, GestureTalk automatically speaks and clears your sentence 3 seconds after your last confirmed gesture.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Text size */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">🔡 Text Size</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3">
+                          <div className="flex justify-between items-center">
+                            <label htmlFor={`${tabsId}-fontsize`} className="text-xs text-gray-400 font-medium">
+                              Message font size
+                            </label>
+                            <span className="text-xs text-cyan-400 font-mono">
+                              {fontSize === 1 ? 'Normal' : fontSize === 1.25 ? 'Large' : 'X-Large'}
+                            </span>
+                          </div>
+                          <input
+                            id={`${tabsId}-fontsize`}
+                            type="range"
+                            min={1}
+                            max={1.5}
+                            step={0.25}
+                            value={fontSize}
+                            onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+                            aria-label={`Text size: ${fontSize === 1 ? 'Normal' : fontSize === 1.25 ? 'Large' : 'Extra Large'}`}
+                            className="w-full accent-cyan-400"
+                          />
+                          <div className="flex justify-between text-[10px] text-gray-600">
+                            <span>Normal</span><span>Large</span><span>X-Large</span>
+                          </div>
                         </div>
                       </div>
 
