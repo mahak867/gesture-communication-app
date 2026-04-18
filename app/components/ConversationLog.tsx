@@ -46,39 +46,51 @@ export default function ConversationLog({
       style={{ maxHeight }}
       aria-label="Conversation history"
       aria-live="polite"
+      aria-relevant="additions"
     >
       {messages.map((msg) => {
         const meta = SOURCE_META[msg.source];
-        return (
-          <div
+        const timeLabel = msg.timestamp.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return onRepeat ? (
+          // Use a real <button> element for full keyboard + screen-reader support
+          <button
             key={msg.id}
-            role={onRepeat ? 'button' : undefined}
-            tabIndex={onRepeat ? 0 : undefined}
-            onClick={() => onRepeat?.(msg.text)}
-            onKeyDown={(e) => e.key === 'Enter' && onRepeat?.(msg.text)}
-            className={`flex items-start gap-2 rounded-lg px-3 py-2 bg-gray-800/60 border border-gray-700/50 ${
-              onRepeat ? 'cursor-pointer hover:bg-gray-700/60 transition-colors' : ''
-            }`}
-            title={onRepeat ? 'Click to repeat this message' : undefined}
+            onClick={() => onRepeat(msg.text)}
+            aria-label={`Repeat: "${msg.text}" — ${meta.label} at ${timeLabel}`}
+            className="flex items-start gap-2 rounded-xl px-3 py-2.5 bg-gray-800/60 border border-gray-700/50 cursor-pointer hover:bg-gray-700/60 transition-colors text-left w-full min-h-[44px]"
           >
-            <span className="text-lg mt-0.5 flex-shrink-0" aria-hidden>
+            <span className="text-lg mt-0.5 flex-shrink-0" aria-hidden="true">
               {meta.icon}
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm break-words">{msg.text}</p>
               <p className="text-xs mt-0.5">
                 <span className={meta.color}>{meta.label}</span>
-                <span className="text-gray-600 ml-1.5">
-                  {msg.timestamp.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
+                <span className="text-gray-600 ml-1.5">{timeLabel}</span>
               </p>
             </div>
-            {onRepeat && (
-              <span className="text-gray-600 text-xs mt-0.5 flex-shrink-0 select-none">🔊</span>
-            )}
+            <span className="text-gray-500 text-xs mt-0.5 flex-shrink-0 select-none" aria-hidden="true">
+              🔊
+            </span>
+          </button>
+        ) : (
+          <div
+            key={msg.id}
+            className="flex items-start gap-2 rounded-xl px-3 py-2.5 bg-gray-800/60 border border-gray-700/50"
+          >
+            <span className="text-lg mt-0.5 flex-shrink-0" aria-hidden="true">
+              {meta.icon}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm break-words">{msg.text}</p>
+              <p className="text-xs mt-0.5">
+                <span className={meta.color}>{meta.label}</span>
+                <span className="text-gray-600 ml-1.5">{timeLabel}</span>
+              </p>
+            </div>
           </div>
         );
       })}

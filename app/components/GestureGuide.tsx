@@ -24,20 +24,23 @@ const CATEGORIES = ['letter', 'number', 'command'] as const;
 export default function GestureGuide() {
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-xs text-gray-500 leading-relaxed">
-        Hold any gesture below for <strong className="text-gray-400">1.5 seconds</strong> to
-        confirm it. The dwell ring on your wrist shows progress.
+      <p className="text-sm text-gray-400 leading-relaxed">
+        Hold any gesture below for <strong className="text-gray-200">1.5 seconds</strong> to
+        confirm it. The cyan ring around your wrist shows progress.
       </p>
 
       {CATEGORIES.map((cat) => {
         const entries = GESTURE_GUIDE.filter((g) => g.category === cat);
         return (
           <div key={cat}>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <h3 className="text-xs uppercase font-bold text-gray-400">
                 {CATEGORY_LABEL[cat]}
               </h3>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_BADGE[cat]}`}>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_BADGE[cat]}`}
+                aria-label={`${entries.length} ${CATEGORY_LABEL[cat].toLowerCase()}`}
+              >
                 {entries.length}
               </span>
             </div>
@@ -47,11 +50,12 @@ export default function GestureGuide() {
                 <div
                   key={g.id}
                   className={`border rounded-xl p-3 flex flex-col items-center gap-1.5 ${CATEGORY_STYLE[cat]}`}
-                  title={g.description}
+                  aria-label={`${g.label}: ${g.description}`}
                 >
-                  <span className="text-3xl" aria-hidden>{g.emoji}</span>
+                  <span className="text-3xl" aria-hidden="true">{g.emoji}</span>
                   <span className="text-sm font-bold">{g.label}</span>
-                  <span className="text-xs text-center opacity-70 leading-tight">
+                  {/* Description visible inline — accessible on touch devices, no title needed */}
+                  <span className="text-xs text-center leading-tight opacity-80">
                     {g.description}
                   </span>
                 </div>
