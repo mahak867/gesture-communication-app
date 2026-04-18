@@ -13,6 +13,7 @@ import { useStats } from './hooks/useStats';
 import { useCustomPhrases } from './hooks/useCustomPhrases';
 import { useConversationLog } from './hooks/useConversationLog';
 import type { GestureResult } from './lib/gestures';
+import { sentenceReducer } from './lib/sentenceReducer';
 
 type Tab = 'builder' | 'phrases' | 'guide' | 'log' | 'settings';
 
@@ -23,42 +24,6 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'log',      label: 'Log',      icon: '📋' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
-
-// ── Sentence state with undo history ─────────────────────────────────────────
-interface SentenceState {
-  current: string;
-  history: string[];
-}
-
-type SentenceAction =
-  | { type: 'append'; char: string }
-  | { type: 'space' }
-  | { type: 'backspace' }
-  | { type: 'clear' }
-  | { type: 'undo' };
-
-function sentenceReducer(state: SentenceState, action: SentenceAction): SentenceState {
-  const pushHistory = () => [...state.history.slice(-29), state.current];
-  switch (action.type) {
-    case 'append':
-      return { current: state.current + action.char, history: pushHistory() };
-    case 'space':
-      if (state.current.endsWith(' ')) return state;
-      return { current: state.current + ' ', history: pushHistory() };
-    case 'backspace':
-      if (state.current.length === 0) return state;
-      return { current: state.current.slice(0, -1), history: pushHistory() };
-    case 'clear':
-      if (state.current === '') return state;
-      return { current: '', history: pushHistory() };
-    case 'undo':
-      if (state.history.length === 0) return state;
-      return {
-        current: state.history[state.history.length - 1],
-        history: state.history.slice(0, -1),
-      };
-  }
-}
 
 export default function GestureTalkApp() {
   const { speak, stop, voices, isSpeaking, updateSettings } = useSpeech();
