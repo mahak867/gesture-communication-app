@@ -25,6 +25,7 @@ interface HandsConstructor {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COOLDOWN_MS = 800;
+const MAX_HANDS = 2;
 
 // MediaPipe hand-bone connections (landmark index pairs)
 const CONNECTIONS: [number, number][] = [
@@ -37,6 +38,39 @@ const CONNECTIONS: [number, number][] = [
 ];
 
 const TIP_INDICES = new Set([4, 8, 12, 16, 20]);
+
+// ── Feedback helpers ──────────────────────────────────────────────────────────
+
+/** Short 880 Hz beep via Web Audio API to confirm a gesture. */
+function playConfirmTone() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+    osc.onended = () => ctx.close();
+  } catch { /* audio unavailable */ }
+}
+
+/** 50 ms haptic pulse on mobile devices that support the Vibration API. */
+function triggerHaptic() {
+  if (typeof navigator === 'undefined') return;
+  try {
+    (navigator as Navigator & { vibrate?: (ms: number) => void }).vibrate?.(50);
+  } catch { /* not available */ }
+}
 
 // ── Drawing helpers ───────────────────────────────────────────────────────────
 function lmPx(lm: Landmark, w: number, h: number) {
@@ -120,6 +154,17 @@ function drawDwellRing(
   }
 }
 
+// ── Per-hand dwell tracking state ─────────────────────────────────────────────
+interface HandState {
+  currentId: string | null;
+  dwellStart: number;
+  lastConfirm: number;
+}
+
+function makeHandState(): HandState {
+  return { currentId: null, dwellStart: 0, lastConfirm: 0 };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export interface CameraViewProps {
   onConfirm: (gesture: GestureResult) => void;
@@ -143,9 +188,11 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
   const dwellMsRef = useRef(dwellMs);
   useEffect(() => { dwellMsRef.current = dwellMs; }, [dwellMs]);
 
-  const currentIdRef = useRef<string | null>(null);
-  const dwellStartRef = useRef(0);
-  const lastConfirmRef = useRef(0);
+  // Per-hand tracking state (up to MAX_HANDS)
+  const handsStateRef = useRef<HandState[]>(
+    Array.from({ length: MAX_HANDS }, makeHandState),
+  );
+
   const lastNotifyRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -165,46 +212,69 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
     ctx.drawImage(results.image, 0, 0, w, h);
     ctx.restore();
 
-    if (!results.multiHandLandmarks?.length) {
-      if (currentIdRef.current !== null) {
-        currentIdRef.current = null;
+    const handCount = results.multiHandLandmarks?.length ?? 0;
+
+    if (handCount === 0) {
+      const anyActive = handsStateRef.current.some((hs) => hs.currentId !== null);
+      if (anyActive) {
+        handsStateRef.current.forEach((hs) => { hs.currentId = null; });
         onGestureChangeRef.current?.(null, 0);
       }
       return;
     }
 
-    const lms = results.multiHandLandmarks[0];
-    const isLeft = results.multiHandedness?.[0]?.label === 'Left';
-    const gesture = detectGesture(lms, isLeft);
     const now = Date.now();
+    let bestGesture: GestureResult | null = null;
+    let bestProgress = 0;
 
-    if (gesture) {
-      if (gesture.id !== currentIdRef.current) {
-        currentIdRef.current = gesture.id;
-        dwellStartRef.current = now;
+    for (let hi = 0; hi < Math.min(handCount, MAX_HANDS); hi++) {
+      const lms = results.multiHandLandmarks![hi];
+      const isLeft = results.multiHandedness?.[hi]?.label === 'Left';
+      const gesture = detectGesture(lms, isLeft);
+      const hs = handsStateRef.current[hi];
+
+      if (gesture) {
+        if (gesture.id !== hs.currentId) {
+          hs.currentId = gesture.id;
+          hs.dwellStart = now;
+        }
+        const elapsed = now - hs.dwellStart;
+        const progress = Math.min(elapsed / dwellMsRef.current, 1);
+
+        if (progress > bestProgress) {
+          bestProgress = progress;
+          bestGesture = gesture;
+        }
+
+        const confirmed = progress >= 0.99;
+        if (confirmed && now - hs.lastConfirm > COOLDOWN_MS) {
+          hs.lastConfirm = now;
+          hs.currentId = null;
+          playConfirmTone();
+          triggerHaptic();
+          onConfirmRef.current(gesture);
+          onGestureChangeRef.current?.(null, 0);
+        }
+
+        drawSkeleton(ctx, lms, w, h);
+        drawGestureLabel(ctx, lms, w, h, gesture, confirmed);
+        drawDwellRing(ctx, lms, w, h, progress);
+      } else {
+        if (hs.currentId !== null) {
+          hs.currentId = null;
+        }
+        drawSkeleton(ctx, lms, w, h);
       }
-      const elapsed = now - dwellStartRef.current;
-      const progress = Math.min(elapsed / dwellMsRef.current, 1);
-      if (now - lastNotifyRef.current > 100) {
-        onGestureChangeRef.current?.(gesture, progress);
-        lastNotifyRef.current = now;
-      }
-      const confirmed = progress >= 0.99;
-      if (confirmed && now - lastConfirmRef.current > COOLDOWN_MS) {
-        lastConfirmRef.current = now;
-        currentIdRef.current = null;
-        onConfirmRef.current(gesture);
-        onGestureChangeRef.current?.(null, 0);
-      }
-      drawSkeleton(ctx, lms, w, h);
-      drawGestureLabel(ctx, lms, w, h, gesture, confirmed);
-      drawDwellRing(ctx, lms, w, h, progress);
-    } else {
-      if (currentIdRef.current !== null) {
-        currentIdRef.current = null;
-        onGestureChangeRef.current?.(null, 0);
-      }
-      drawSkeleton(ctx, lms, w, h);
+    }
+
+    // Clear state for hands that are no longer in the frame
+    for (let hi = handCount; hi < MAX_HANDS; hi++) {
+      handsStateRef.current[hi].currentId = null;
+    }
+
+    if (now - lastNotifyRef.current > 100) {
+      onGestureChangeRef.current?.(bestGesture, bestProgress);
+      lastNotifyRef.current = now;
     }
   }, []);
 
@@ -223,7 +293,7 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
           `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
       });
       hands.setOptions({
-        maxNumHands: 1,
+        maxNumHands: MAX_HANDS,
         modelComplexity: 1,
         minDetectionConfidence: 0.7,
         minTrackingConfidence: 0.7,
@@ -335,7 +405,7 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
       {isReady && !camError && (
         <div className="absolute top-3 left-0 right-0 flex justify-center z-10 pointer-events-none">
           <span className="bg-black/60 text-gray-200 text-xs px-3 py-1.5 rounded-full">
-            Hold a gesture for {(dwellMs / 1000).toFixed(1)} s to confirm
+            Hold a gesture for {(dwellMs / 1000).toFixed(1)} s to confirm · 2 hands supported
           </span>
         </div>
       )}
