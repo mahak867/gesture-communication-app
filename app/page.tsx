@@ -7,6 +7,7 @@ import ConversationLog, { type Message } from './components/ConversationLog';
 import GestureGuide from './components/GestureGuide';
 import VoiceSettings from './components/VoiceSettings';
 import StatsPanel from './components/StatsPanel';
+import OnboardingOverlay, { shouldShowOnboarding } from './components/OnboardingOverlay';
 import { useSpeech } from './hooks/useSpeech';
 import { useStats } from './hooks/useStats';
 import { useCustomPhrases } from './hooks/useCustomPhrases';
@@ -32,6 +33,9 @@ export default function GestureTalkApp() {
   const { phrases: customPhrases, addPhrase, removePhrase } = useCustomPhrases();
   const tabsId = useId();
 
+  // Onboarding: shown once on first visit
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
+
   // Sentence being built letter-by-letter via gestures
   const [sentence, setSentence] = useState('');
   // Manual type-to-speak input
@@ -43,6 +47,14 @@ export default function GestureTalkApp() {
   // Currently detected gesture + dwell progress
   const [currentGesture, setCurrentGesture] = useState<GestureResult | null>(null);
   const [dwellProgress, setDwellProgress] = useState(0);
+  // Configurable dwell time in ms (persisted to localStorage)
+  const [dwellMs, setDwellMs] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1500;
+    try {
+      const v = localStorage.getItem('gesturetalk-dwell-ms');
+      return v ? Number(v) : 1500;
+    } catch { return 1500; }
+  });
 
   // Refs for tab buttons (keyboard arrow-key navigation)
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
@@ -136,6 +148,12 @@ export default function GestureTalkApp() {
     () => speak('Hello! GestureTalk is ready. Your voice settings sound great.'),
     [speak],
   );
+
+  /* ── Dwell time change ── */
+  const handleDwellChange = useCallback((ms: number) => {
+    setDwellMs(ms);
+    try { localStorage.setItem('gesturetalk-dwell-ms', String(ms)); } catch { /* ignore */ }
+  }, []);
 
   /* ── Tab keyboard navigation (ARIA APG roving tabindex pattern) ── */
   const handleTabKeyDown = useCallback(
@@ -237,6 +255,7 @@ export default function GestureTalkApp() {
           <CameraView
             onConfirm={handleConfirm}
             onGestureChange={handleGestureChange}
+            dwellMs={dwellMs}
           />
         </div>
 
@@ -409,6 +428,37 @@ export default function GestureTalkApp() {
                         onUpdate={updateSettings}
                         onTest={handleVoiceTest}
                       />
+
+                      {/* Dwell time setting */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">⏱️ Gesture Sensitivity</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3">
+                          <div className="flex justify-between items-center">
+                            <label htmlFor={`${tabsId}-dwell`} className="text-xs text-gray-400 font-medium">
+                              Hold duration
+                            </label>
+                            <span className="text-xs text-cyan-400 font-mono">{(dwellMs / 1000).toFixed(1)} s</span>
+                          </div>
+                          <input
+                            id={`${tabsId}-dwell`}
+                            type="range"
+                            min={500}
+                            max={3000}
+                            step={100}
+                            value={dwellMs}
+                            onChange={(e) => handleDwellChange(Number(e.target.value))}
+                            aria-label={`Gesture hold duration: ${(dwellMs / 1000).toFixed(1)} seconds`}
+                            className="w-full accent-cyan-400"
+                          />
+                          <div className="flex justify-between text-[10px] text-gray-600">
+                            <span>0.5 s (quick)</span><span>1.5 s (default)</span><span>3 s (slow)</span>
+                          </div>
+                          <p className="text-[11px] text-gray-600 leading-relaxed">
+                            How long you must hold a gesture before it is confirmed. Reduce for faster input; increase to avoid accidental triggers.
+                          </p>
+                        </div>
+                      </div>
+
                       <StatsPanel stats={stats} />
                     </div>
                   )}
@@ -418,6 +468,11 @@ export default function GestureTalkApp() {
           </div>
         </div>
       </div>
+
+      {/* First-run onboarding */}
+      {showOnboarding && (
+        <OnboardingOverlay onDismiss={() => setShowOnboarding(false)} />
+      )}
     </main>
   );
 }

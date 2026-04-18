@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "GestureTalk – Sign Language Communication",
@@ -41,7 +42,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-gray-950 antialiased">{children}</body>
+      <body className="bg-gray-950 antialiased">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </body>
     </html>
   );
 }
