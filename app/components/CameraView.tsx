@@ -23,35 +23,28 @@ interface HandsConstructor {
   new (config: { locateFile: (f: string) => string }): HandsInstance;
 }
 
-
-const DWELL_MS = 1500;   // hold a gesture this long to confirm it
-const COOLDOWN_MS = 800; // min gap between two confirmations
+// ── Constants ────────────────────────────────────────────────────────────────
+const DWELL_MS = 1500;
+const COOLDOWN_MS = 800;
 
 // MediaPipe hand-bone connections (landmark index pairs)
 const CONNECTIONS: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4],          // thumb
-  [0, 5], [5, 6], [6, 7], [7, 8],          // index
-  [0, 9], [9, 10], [10, 11], [11, 12],     // middle
-  [0, 13], [13, 14], [14, 15], [15, 16],   // ring
-  [0, 17], [17, 18], [18, 19], [19, 20],   // pinky
-  [5, 9], [9, 13], [13, 17],               // knuckle ridge
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17],
 ];
 
 const TIP_INDICES = new Set([4, 8, 12, 16, 20]);
 
 // ── Drawing helpers ───────────────────────────────────────────────────────────
-/** Convert a MediaPipe normalised landmark to canvas pixel coords (x is mirrored). */
 function lmPx(lm: Landmark, w: number, h: number) {
   return { x: (1 - lm.x) * w, y: lm.y * h };
 }
 
-function drawSkeleton(
-  ctx: CanvasRenderingContext2D,
-  lms: Landmark[],
-  w: number,
-  h: number,
-) {
-  // Connections
+function drawSkeleton(ctx: CanvasRenderingContext2D, lms: Landmark[], w: number, h: number) {
   ctx.strokeStyle = 'rgba(0, 255, 128, 0.75)';
   ctx.lineWidth = 2;
   for (const [a, b] of CONNECTIONS) {
@@ -62,7 +55,6 @@ function drawSkeleton(
     ctx.lineTo(pb.x, pb.y);
     ctx.stroke();
   }
-  // Dots
   for (let i = 0; i < lms.length; i++) {
     const p = lmPx(lms[i], w, h);
     const isTip = TIP_INDICES.has(i);
@@ -84,30 +76,23 @@ function drawGestureLabel(
   gesture: GestureResult,
   confirmed: boolean,
 ) {
-  const tip = lmPx(lms[12], w, h); // middle-finger tip as anchor
+  const tip = lmPx(lms[12], w, h);
   const x = tip.x;
   const y = tip.y - 20;
-
   ctx.save();
   ctx.font = 'bold 28px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-
   const label = `${gesture.emoji} ${gesture.label}`;
   const tw = ctx.measureText(label).width + 22;
   const th = 42;
   const bx = x - tw / 2;
   const by = y - th;
-
-  ctx.fillStyle = confirmed
-    ? 'rgba(0, 180, 80, 0.9)'
-    : 'rgba(15, 23, 42, 0.85)';
+  ctx.fillStyle = confirmed ? 'rgba(0, 180, 80, 0.9)' : 'rgba(15, 23, 42, 0.85)';
   ctx.fillRect(bx, by, tw, th);
-
   ctx.strokeStyle = confirmed ? '#22c55e' : '#06b6d4';
   ctx.lineWidth = 2;
   ctx.strokeRect(bx, by, tw, th);
-
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(label, x, y - 5);
   ctx.restore();
@@ -122,23 +107,14 @@ function drawDwellRing(
 ) {
   const wrist = lmPx(lms[0], w, h);
   const r = 32;
-
-  // Background ring
   ctx.beginPath();
   ctx.arc(wrist.x, wrist.y, r, 0, Math.PI * 2);
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.lineWidth = 5;
   ctx.stroke();
-
   if (progress > 0) {
     ctx.beginPath();
-    ctx.arc(
-      wrist.x,
-      wrist.y,
-      r,
-      -Math.PI / 2,
-      -Math.PI / 2 + progress * Math.PI * 2,
-    );
+    ctx.arc(wrist.x, wrist.y, r, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
     ctx.strokeStyle = progress >= 0.99 ? '#22c55e' : '#06b6d4';
     ctx.lineWidth = 5;
     ctx.stroke();
@@ -154,21 +130,22 @@ export interface CameraViewProps {
 export default function CameraView({ onConfirm, onGestureChange }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isScriptReady, setIsScriptReady] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [camError, setCamError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
-  // Keep callback refs stable so the animation loop never stales
   const onConfirmRef = useRef(onConfirm);
   useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
   const onGestureChangeRef = useRef(onGestureChange);
   useEffect(() => { onGestureChangeRef.current = onGestureChange; }, [onGestureChange]);
 
-  // Dwell timer state — managed in refs to avoid re-renders inside the loop
   const currentIdRef = useRef<string | null>(null);
   const dwellStartRef = useRef(0);
   const lastConfirmRef = useRef(0);
   const lastNotifyRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const handsRef = useRef<HandsInstance | null>(null);
 
   const onResults = useCallback((results: HandsResults) => {
@@ -179,7 +156,6 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
     const w = canvas.width;
     const h = canvas.height;
 
-    // Draw mirrored camera frame
     ctx.save();
     ctx.translate(w, 0);
     ctx.scale(-1, 1);
@@ -204,16 +180,12 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
         currentIdRef.current = gesture.id;
         dwellStartRef.current = now;
       }
-
       const elapsed = now - dwellStartRef.current;
       const progress = Math.min(elapsed / DWELL_MS, 1);
-
-      // Throttle React state update to ~10 fps
       if (now - lastNotifyRef.current > 100) {
         onGestureChangeRef.current?.(gesture, progress);
         lastNotifyRef.current = now;
       }
-
       const confirmed = progress >= 0.99;
       if (confirmed && now - lastConfirmRef.current > COOLDOWN_MS) {
         lastConfirmRef.current = now;
@@ -221,7 +193,6 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
         onConfirmRef.current(gesture);
         onGestureChangeRef.current?.(null, 0);
       }
-
       drawSkeleton(ctx, lms, w, h);
       drawGestureLabel(ctx, lms, w, h, gesture, confirmed);
       drawDwellRing(ctx, lms, w, h, progress);
@@ -234,27 +205,49 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
     }
   }, []);
 
+  // Single effect: initialise Hands (once) then start/restart the camera stream.
+  // Depends on `facingMode` so it restarts when the user toggles front/rear camera.
+  // All setState calls are deferred into async callbacks to satisfy the linter.
   useEffect(() => {
-    if (!isReady) return;
+    if (!isScriptReady) return;
     const Hands = (window as unknown as { Hands?: HandsConstructor }).Hands;
     if (!Hands) return;
 
-    const hands = new Hands({
-      locateFile: (file: string) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-    });
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7,
-    });
-    hands.onResults(onResults);
-    handsRef.current = hands;
+    // Initialise MediaPipe Hands only on the first run
+    if (!handsRef.current) {
+      const hands = new Hands({
+        locateFile: (file: string) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
+      hands.onResults(onResults);
+      handsRef.current = hands;
+    }
+
+    // Stop any existing stream + animation loop before restarting
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
 
     navigator.mediaDevices
-      .getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' } })
+      .getUserMedia({
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      })
       .then((stream) => {
+        // setState in async callback — does not trigger cascading renders in the effect body
+        setCamError(null);
+        setIsReady(true);
+        streamRef.current = stream;
         if (!videoRef.current) return;
         videoRef.current.srcObject = stream;
         videoRef.current.play();
@@ -272,43 +265,66 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
 
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
-  }, [isReady, onResults]);
+  }, [isScriptReady, facingMode, onResults]);
+
+  const rearLabel = facingMode === 'user' ? 'Switch to rear camera' : 'Switch to front camera';
 
   return (
     <div className="relative w-full h-full bg-gray-950 overflow-hidden">
-      {/* Load MediaPipe Hands from CDN */}
       <Script
         src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
         strategy="afterInteractive"
-        onLoad={() => setIsReady(true)}
+        onLoad={() => setIsScriptReady(true)}
       />
 
       {/* Loading state */}
       {!isReady && !camError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 gap-4">
-          <div className="w-12 h-12 border-4 border-t-cyan-400 border-gray-700 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-t-cyan-400 border-gray-700 rounded-full animate-spin" role="status" aria-label="Loading" />
           <p className="text-gray-300 text-sm font-medium">Loading AI hand-tracking model…</p>
-          <p className="text-gray-600 text-xs">This may take a few seconds</p>
+          <p className="text-gray-500 text-xs">This may take a few seconds on slower connections</p>
         </div>
       )}
 
-      {/* Camera permission error */}
+      {/* Camera permission / device error */}
       {camError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 gap-3 px-8 text-center">
-          <span className="text-5xl">📷</span>
-          <p className="text-red-400 font-semibold">Camera Unavailable</p>
+        <div
+          role="alert"
+          className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 gap-3 px-8 text-center"
+        >
+          <span className="text-5xl" aria-hidden="true">📷</span>
+          <p className="text-red-400 font-semibold text-base">Camera Unavailable</p>
           <p className="text-gray-400 text-sm">{camError}</p>
+          <button
+            onClick={() => setFacingMode((m) => m === 'user' ? 'environment' : 'user')}
+            className="mt-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm px-4 py-2 rounded-lg transition-colors min-h-[44px]"
+          >
+            Try other camera
+          </button>
         </div>
       )}
 
-      {/* Instruction overlay (shown after ready) */}
+      {/* Instruction overlay */}
       {isReady && !camError && (
         <div className="absolute top-3 left-0 right-0 flex justify-center z-10 pointer-events-none">
-          <span className="bg-black/60 text-gray-300 text-xs px-3 py-1 rounded-full">
+          <span className="bg-black/60 text-gray-200 text-xs px-3 py-1.5 rounded-full">
             Hold a gesture for 1.5 s to confirm
           </span>
         </div>
+      )}
+
+      {/* Camera-facing toggle (only shown when camera is running) */}
+      {isReady && !camError && (
+        <button
+          onClick={() => setFacingMode((m) => m === 'user' ? 'environment' : 'user')}
+          aria-label={rearLabel}
+          title={rearLabel}
+          className="absolute bottom-3 right-3 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-11 h-11 flex items-center justify-center transition-colors text-lg"
+        >
+          🔄
+        </button>
       )}
 
       <video ref={videoRef} className="hidden" autoPlay playsInline muted />
@@ -317,6 +333,8 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
         width={1280}
         height={720}
         className="w-full h-full object-cover"
+        role="img"
+        aria-label="Live camera feed with hand gesture overlay"
       />
     </div>
   );

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* ── Viewport height fix for iOS Safari (address bar eats 100vh) ── */
+html {
+  height: 100%;
+  /* -webkit-fill-available is the iOS Safari fallback for dvh */
+  min-height: -webkit-fill-available;
+}
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
 :root {
   color-scheme: dark;
 }
@@ -8,9 +19,44 @@ body {
   background: #030712;
   color: #f9fafb;
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Prevent double-tap zoom on interactive elements */
+  touch-action: manipulation;
+  /* Respect safe areas on notched / edge-to-edge phones */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Thin dark scrollbar */
+/* ── Touch action: prevent accidental double-tap zoom on buttons ── */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* ── Focus visible — high-contrast ring for keyboard / switch users ── */
+:focus-visible {
+  outline: 2px solid #22d3ee; /* cyan-400 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Suppress default focus ring (replaced above) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Reduced motion — disable decorative animations ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Thin dark scrollbar ── */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -24,5 +70,12 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
+}
+
+/* ── Forced-color (Windows High Contrast) overrides ── */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 3px solid ButtonText;
+  }
 }
 

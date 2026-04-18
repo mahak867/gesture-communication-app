@@ -25,10 +25,17 @@ export default function SentenceBuilder({
   return (
     <div className="flex flex-col gap-3">
       {/* ── Current gesture indicator ── */}
-      <div className="h-16 bg-gray-800 border border-gray-700 rounded-xl px-4 flex items-center gap-3">
+      <div
+        className="min-h-[64px] bg-gray-800 border border-gray-700 rounded-xl px-4 flex items-center gap-3"
+        aria-label={
+          currentGesture
+            ? `Detecting gesture: ${currentGesture.label}, ${progressPct}% confirmed`
+            : 'No gesture detected'
+        }
+      >
         {currentGesture ? (
           <>
-            <span className="text-3xl flex-shrink-0">{currentGesture.emoji}</span>
+            <span className="text-3xl flex-shrink-0" aria-hidden="true">{currentGesture.emoji}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white font-bold text-sm truncate">
@@ -37,16 +44,24 @@ export default function SentenceBuilder({
                     {currentGesture.category}
                   </span>
                 </span>
-                <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{progressPct}%</span>
+                <span className="text-xs text-gray-400 ml-2 flex-shrink-0" aria-hidden="true">
+                  {progressPct}%
+                </span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="w-full bg-gray-700 rounded-full h-2 overflow-hidden"
+                role="progressbar"
+                aria-valuenow={progressPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Dwell progress: ${progressPct}%`}
+              >
                 <div
-                  className="h-1.5 rounded-full transition-all duration-100"
+                  className="h-2 rounded-full transition-all duration-100"
                   style={{
                     width: `${progressPct}%`,
                     backgroundColor: progress >= 0.99 ? '#22c55e' : '#06b6d4',
-                    boxShadow:
-                      isConfirming ? '0 0 6px rgba(6,182,212,0.6)' : undefined,
+                    boxShadow: isConfirming ? '0 0 6px rgba(6,182,212,0.6)' : undefined,
                   }}
                 />
               </div>
@@ -64,11 +79,15 @@ export default function SentenceBuilder({
         className="min-h-[90px] max-h-[160px] overflow-y-auto bg-gray-800 border border-gray-700 rounded-xl p-4 font-mono text-base text-white leading-relaxed break-words"
         aria-label="Sentence being built"
         aria-live="polite"
+        aria-atomic="false"
       >
         {text ? (
           <>
             {text}
-            <span aria-hidden="true" className="inline-block w-0.5 h-5 bg-cyan-400 ml-0.5 align-middle animate-pulse" />
+            <span
+              aria-hidden="true"
+              className="inline-block w-0.5 h-5 bg-cyan-400 ml-0.5 align-middle animate-pulse"
+            />
           </>
         ) : (
           <span className="text-gray-600 italic select-none">
@@ -79,34 +98,40 @@ export default function SentenceBuilder({
 
       {/* ── Character count ── */}
       {text && (
-        <p className="text-xs text-gray-600 -mt-1">{text.length} characters</p>
+        <p className="text-xs text-gray-600 -mt-1" aria-live="polite">
+          {text.length} character{text.length !== 1 ? 's' : ''}
+        </p>
       )}
 
-      {/* ── Action buttons ── */}
+      {/* ── Action buttons — min 44×44px touch targets ── */}
       <div className="grid grid-cols-3 gap-2">
         <button
           onClick={onBackspace}
-          title="Delete last character (or gesture: 👎)"
-          className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+          aria-label="Delete last character (gesture: thumbs down)"
+          className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
         >
-          ⌫ <span className="hidden sm:inline">Back</span>
+          <span aria-hidden="true">⌫</span>
+          <span className="hidden sm:inline">Back</span>
         </button>
 
         <button
           onClick={onClear}
-          title="Clear all text"
-          className="bg-gray-800 hover:bg-red-950 border border-gray-700 hover:border-red-800 text-white py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+          aria-label="Clear all text"
+          className="bg-gray-800 hover:bg-red-950 border border-gray-700 hover:border-red-800 text-white min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
         >
-          🗑️ <span className="hidden sm:inline">Clear</span>
+          <span aria-hidden="true">🗑️</span>
+          <span className="hidden sm:inline">Clear</span>
         </button>
 
         <button
           onClick={onSpeak}
           disabled={!text.trim()}
-          title="Speak aloud (or gesture: 👍)"
-          className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+          aria-label="Speak sentence aloud (gesture: thumbs up)"
+          aria-disabled={!text.trim()}
+          className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
         >
-          🔊 Speak
+          <span aria-hidden="true">🔊</span>
+          Speak
         </button>
       </div>
     </div>
