@@ -8,13 +8,25 @@ export interface SpeechSettings {
   voiceIndex: number;
 }
 
+const SPEECH_STORAGE_KEY = 'gesturetalk-voice-settings';
+
+function loadSpeechSettings(): SpeechSettings {
+  if (typeof window === 'undefined') return { rate: 1.0, pitch: 1.0, voiceIndex: 0 };
+  try {
+    const raw = localStorage.getItem(SPEECH_STORAGE_KEY);
+    if (raw) return { rate: 1.0, pitch: 1.0, voiceIndex: 0, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return { rate: 1.0, pitch: 1.0, voiceIndex: 0 };
+}
+
 export function useSpeech(initialSettings?: Partial<SpeechSettings>) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const persisted = loadSpeechSettings();
   const settingsRef = useRef<SpeechSettings>({
-    rate: initialSettings?.rate ?? 1.0,
-    pitch: initialSettings?.pitch ?? 1.0,
-    voiceIndex: initialSettings?.voiceIndex ?? 0,
+    rate: initialSettings?.rate ?? persisted.rate,
+    pitch: initialSettings?.pitch ?? persisted.pitch,
+    voiceIndex: initialSettings?.voiceIndex ?? persisted.voiceIndex,
   });
 
   // Load available voices (async in some browsers)
@@ -30,7 +42,11 @@ export function useSpeech(initialSettings?: Partial<SpeechSettings>) {
   }, []);
 
   const updateSettings = useCallback((patch: Partial<SpeechSettings>) => {
-    settingsRef.current = { ...settingsRef.current, ...patch };
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    try {
+      localStorage.setItem(SPEECH_STORAGE_KEY, JSON.stringify(next));
+    } catch { /* ignore quota errors */ }
   }, []);
 
   const speak = useCallback((text: string) => {

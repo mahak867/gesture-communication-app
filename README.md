@@ -99,6 +99,11 @@ npm run lint
 
 ## 🌱 Roadmap
 
+- [x] Voice settings persist across sessions
+- [x] Configurable gesture hold (dwell) time
+- [x] First-run onboarding walkthrough
+- [x] PWA 192×192 and 512×512 icons
+- [x] Error boundary with friendly fallback
 - [ ] More ASL letters (B, C, D, E, F, G, H, O, V, W) via expanded landmark analysis
 - [ ] Multi-language TTS (Spanish, French, Mandarin, etc.)
 - [ ] Cloud sync for custom phrases (optional, opt-in)

@@ -24,7 +24,6 @@ interface HandsConstructor {
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const DWELL_MS = 1500;
 const COOLDOWN_MS = 800;
 
 // MediaPipe hand-bone connections (landmark index pairs)
@@ -125,9 +124,11 @@ function drawDwellRing(
 export interface CameraViewProps {
   onConfirm: (gesture: GestureResult) => void;
   onGestureChange?: (gesture: GestureResult | null, progress: number) => void;
+  /** How long (ms) the user must hold a gesture before it is confirmed. Default 1500. */
+  dwellMs?: number;
 }
 
-export default function CameraView({ onConfirm, onGestureChange }: CameraViewProps) {
+export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isScriptReady, setIsScriptReady] = useState(false);
@@ -139,6 +140,8 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
   useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
   const onGestureChangeRef = useRef(onGestureChange);
   useEffect(() => { onGestureChangeRef.current = onGestureChange; }, [onGestureChange]);
+  const dwellMsRef = useRef(dwellMs);
+  useEffect(() => { dwellMsRef.current = dwellMs; }, [dwellMs]);
 
   const currentIdRef = useRef<string | null>(null);
   const dwellStartRef = useRef(0);
@@ -181,7 +184,7 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
         dwellStartRef.current = now;
       }
       const elapsed = now - dwellStartRef.current;
-      const progress = Math.min(elapsed / DWELL_MS, 1);
+      const progress = Math.min(elapsed / dwellMsRef.current, 1);
       if (now - lastNotifyRef.current > 100) {
         onGestureChangeRef.current?.(gesture, progress);
         lastNotifyRef.current = now;
@@ -332,7 +335,7 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
       {isReady && !camError && (
         <div className="absolute top-3 left-0 right-0 flex justify-center z-10 pointer-events-none">
           <span className="bg-black/60 text-gray-200 text-xs px-3 py-1.5 rounded-full">
-            Hold a gesture for 1.5 s to confirm
+            Hold a gesture for {(dwellMs / 1000).toFixed(1)} s to confirm
           </span>
         </div>
       )}

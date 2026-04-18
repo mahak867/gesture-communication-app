@@ -3,6 +3,17 @@
 import { useState, useId } from 'react';
 import type { SpeechSettings } from '../hooks/useSpeech';
 
+const SPEECH_STORAGE_KEY = 'gesturetalk-voice-settings';
+
+function loadPersistedSettings(): { rate: number; pitch: number; voiceIndex: number } {
+  if (typeof window === 'undefined') return { rate: 1.0, pitch: 1.0, voiceIndex: 0 };
+  try {
+    const raw = localStorage.getItem(SPEECH_STORAGE_KEY);
+    if (raw) return { rate: 1.0, pitch: 1.0, voiceIndex: 0, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return { rate: 1.0, pitch: 1.0, voiceIndex: 0 };
+}
+
 interface VoiceSettingsProps {
   voices: SpeechSynthesisVoice[];
   isSpeaking: boolean;
@@ -17,9 +28,10 @@ export default function VoiceSettings({
   onTest,
 }: VoiceSettingsProps) {
   const id = useId();
-  const [rate, setRate]       = useState(1.0);
-  const [pitch, setPitch]     = useState(1.0);
-  const [voiceIdx, setVoiceIdx] = useState(0);
+  // Lazy initialisers restore persisted values so settings survive page refresh
+  const [rate, setRate]         = useState<number>(() => loadPersistedSettings().rate);
+  const [pitch, setPitch]       = useState<number>(() => loadPersistedSettings().pitch);
+  const [voiceIdx, setVoiceIdx] = useState<number>(() => loadPersistedSettings().voiceIndex);
 
   function handleRate(v: number) {
     setRate(v);
