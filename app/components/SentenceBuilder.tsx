@@ -1,11 +1,13 @@
 // components/SentenceBuilder.tsx
 'use client';
+import { useState, useCallback } from 'react';
 import type { GestureResult } from '../lib/gestures';
 
 interface SentenceBuilderProps {
   text: string;
   currentGesture: GestureResult | null;
   progress: number;
+  isSpeaking: boolean;
   onSpeak: () => void;
   onClear: () => void;
   onBackspace: () => void;
@@ -15,12 +17,27 @@ export default function SentenceBuilder({
   text,
   currentGesture,
   progress,
+  isSpeaking,
   onSpeak,
   onClear,
   onBackspace,
 }: SentenceBuilderProps) {
   const progressPct = Math.round(progress * 100);
   const isConfirming = progress > 0 && progress < 1;
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API not available (e.g. older WebView) — silently skip
+    }
+  }, [text]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -96,42 +113,56 @@ export default function SentenceBuilder({
         )}
       </div>
 
-      {/* ── Character count ── */}
+      {/* ── Character / word count ── */}
       {text && (
         <p className="text-xs text-gray-600 -mt-1" aria-live="polite">
-          {text.length} character{text.length !== 1 ? 's' : ''}
+          {text.length} character{text.length !== 1 ? 's' : ''} · {wordCount} word{wordCount !== 1 ? 's' : ''}
         </p>
       )}
 
       {/* ── Action buttons — min 44×44px touch targets ── */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onBackspace}
           aria-label="Delete last character (gesture: thumbs down)"
           className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
         >
           <span aria-hidden="true">⌫</span>
-          <span className="hidden sm:inline">Back</span>
+          <span>Back</span>
         </button>
 
         <button
           onClick={onClear}
-          aria-label="Clear all text"
+          aria-label="Clear all text (gesture: rock-on 🤘)"
           className="bg-gray-800 hover:bg-red-950 border border-gray-700 hover:border-red-800 text-white min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
         >
           <span aria-hidden="true">🗑️</span>
-          <span className="hidden sm:inline">Clear</span>
+          <span>Clear</span>
+        </button>
+
+        <button
+          onClick={handleCopy}
+          disabled={!text.trim()}
+          aria-label={copied ? 'Copied to clipboard' : 'Copy sentence to clipboard'}
+          className="bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-40 border border-gray-700 text-white min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+        >
+          <span aria-hidden="true">{copied ? '✅' : '📋'}</span>
+          <span>{copied ? 'Copied!' : 'Copy'}</span>
         </button>
 
         <button
           onClick={onSpeak}
-          disabled={!text.trim()}
-          aria-label="Speak sentence aloud (gesture: thumbs up)"
-          aria-disabled={!text.trim()}
-          className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+          disabled={!text.trim() || isSpeaking}
+          aria-label={isSpeaking ? 'Speaking…' : 'Speak sentence aloud (gesture: thumbs up)'}
+          aria-disabled={!text.trim() || isSpeaking}
+          className={`text-white font-bold min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+            isSpeaking
+              ? 'bg-cyan-500 animate-pulse cursor-not-allowed'
+              : 'bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed'
+          }`}
         >
           <span aria-hidden="true">🔊</span>
-          Speak
+          <span>{isSpeaking ? 'Speaking…' : 'Speak'}</span>
         </button>
       </div>
     </div>

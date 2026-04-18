@@ -279,12 +279,34 @@ export default function CameraView({ onConfirm, onGestureChange }: CameraViewPro
         onLoad={() => setIsScriptReady(true)}
       />
 
-      {/* Loading state */}
+      {/* Loading state: two-step feedback */}
       {!isReady && !camError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 gap-4">
-          <div className="w-12 h-12 border-4 border-t-cyan-400 border-gray-700 rounded-full animate-spin" role="status" aria-label="Loading" />
-          <p className="text-gray-300 text-sm font-medium">Loading AI hand-tracking model…</p>
-          <p className="text-gray-500 text-xs">This may take a few seconds on slower connections</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 gap-5 px-8">
+          <div className="w-14 h-14 border-4 border-t-cyan-400 border-gray-700 rounded-full animate-spin" role="status" aria-label="Loading" />
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-gray-200 text-sm font-semibold">
+              {isScriptReady ? 'Starting camera…' : 'Loading AI model…'}
+            </p>
+            <p className="text-gray-600 text-xs">
+              {isScriptReady
+                ? 'Please allow camera access when prompted'
+                : 'Downloading MediaPipe Hands (first load only)'}
+            </p>
+          </div>
+          {/* Step indicator */}
+          <div className="flex items-center gap-3 text-xs">
+            <span className={`flex items-center gap-1 ${isScriptReady ? 'text-cyan-400' : 'text-gray-600'}`}>
+              <span aria-hidden="true">{isScriptReady ? '✓' : '○'}</span> AI Model
+            </span>
+            <span className="text-gray-700">→</span>
+            <span className={`flex items-center gap-1 ${isReady ? 'text-cyan-400' : 'text-gray-600'}`}>
+              <span aria-hidden="true">{isReady ? '✓' : '○'}</span> Camera
+            </span>
+            <span className="text-gray-700">→</span>
+            <span className="text-gray-700 flex items-center gap-1">
+              <span aria-hidden="true">○</span> Ready
+            </span>
+          </div>
         </div>
       )}
 

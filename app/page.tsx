@@ -5,16 +5,21 @@ import SentenceBuilder from './components/SentenceBuilder';
 import QuickPhrases from './components/QuickPhrases';
 import ConversationLog, { type Message } from './components/ConversationLog';
 import GestureGuide from './components/GestureGuide';
+import VoiceSettings from './components/VoiceSettings';
+import StatsPanel from './components/StatsPanel';
 import { useSpeech } from './hooks/useSpeech';
+import { useStats } from './hooks/useStats';
+import { useCustomPhrases } from './hooks/useCustomPhrases';
 import type { GestureResult } from './lib/gestures';
 
-type Tab = 'builder' | 'phrases' | 'guide' | 'log';
+type Tab = 'builder' | 'phrases' | 'guide' | 'log' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'builder', label: 'Builder', icon: '✏️' },
-  { id: 'phrases', label: 'Phrases', icon: '💬' },
-  { id: 'guide',   label: 'Guide',   icon: '📖' },
-  { id: 'log',     label: 'Log',     icon: '📋' },
+  { id: 'builder',  label: 'Build',    icon: '✏️' },
+  { id: 'phrases',  label: 'Phrases',  icon: '💬' },
+  { id: 'guide',    label: 'Guide',    icon: '📖' },
+  { id: 'log',      label: 'Log',      icon: '📋' },
+  { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
 function makeId() {
@@ -22,7 +27,9 @@ function makeId() {
 }
 
 export default function GestureTalkApp() {
-  const { speak } = useSpeech();
+  const { speak, stop, voices, isSpeaking, updateSettings } = useSpeech();
+  const { stats, incrementGesture, incrementMessage } = useStats();
+  const { phrases: customPhrases, addPhrase, removePhrase } = useCustomPhrases();
   const tabsId = useId();
 
   // Sentence being built letter-by-letter via gestures
@@ -39,7 +46,7 @@ export default function GestureTalkApp() {
 
   // Refs for tab buttons (keyboard arrow-key navigation)
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
-    builder: null, phrases: null, guide: null, log: null,
+    builder: null, phrases: null, guide: null, log: null, settings: null,
   });
 
   /* ── Helpers ── */
@@ -59,13 +66,15 @@ export default function GestureTalkApp() {
       if (!trimmed) return;
       speak(trimmed);
       addMessage(trimmed, source);
+      incrementMessage(trimmed);
     },
-    [speak, addMessage],
+    [speak, addMessage, incrementMessage],
   );
 
   /* ── Camera callbacks ── */
   const handleConfirm = useCallback(
     (gesture: GestureResult) => {
+      incrementGesture();
       if (gesture.category === 'command') {
         if (gesture.id === 'five') {
           setSentence((prev) => (prev.endsWith(' ') ? prev : prev + ' '));
@@ -77,12 +86,14 @@ export default function GestureTalkApp() {
           });
         } else if (gesture.id === 'thumbsdown') {
           setSentence((prev) => prev.slice(0, -1));
+        } else if (gesture.id === 'clear') {
+          setSentence('');
         }
       } else {
         setSentence((prev) => prev + gesture.label);
       }
     },
-    [speakAndLog],
+    [speakAndLog, incrementGesture],
   );
 
   const handleGestureChange = useCallback(
@@ -120,6 +131,12 @@ export default function GestureTalkApp() {
   /* ── Repeat from log ── */
   const handleRepeat = useCallback((text: string) => speak(text), [speak]);
 
+  /* ── Voice test ── */
+  const handleVoiceTest = useCallback(
+    () => speak('Hello! GestureTalk is ready. Your voice settings sound great.'),
+    [speak],
+  );
+
   /* ── Tab keyboard navigation (ARIA APG roving tabindex pattern) ── */
   const handleTabKeyDown = useCallback(
     (e: React.KeyboardEvent, currentId: Tab) => {
@@ -143,41 +160,69 @@ export default function GestureTalkApp() {
   const isDetecting = currentGesture !== null;
   const statusText = isDetecting
     ? `Detecting: ${currentGesture?.label}`
+    : isSpeaking
+    ? 'Speaking'
     : 'Watching for gestures';
 
   return (
-    /*
-     * h-dvh: dynamic viewport height — properly excludes the iOS Safari address bar.
-     * Falls back to h-screen (100vh) in browsers without dvh support.
-     */
     <main className="h-screen h-dvh bg-gray-950 text-white flex flex-col overflow-hidden">
 
       {/* ── Header ── */}
-      <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+      <header
+        className="flex-shrink-0 border-b px-4 py-3 flex items-center justify-between"
+        style={{
+          background: 'linear-gradient(135deg, #030712 0%, #0c1120 60%, #030f1c 100%)',
+          borderBottomColor: 'rgba(6,182,212,0.18)',
+        }}
+      >
         <div className="flex items-center gap-2.5">
-          <span className="text-2xl" aria-hidden>🤟</span>
+          <span className="text-2xl" aria-hidden="true">🤟</span>
           <div>
-            <h1 className="text-base font-bold leading-tight">GestureTalk</h1>
-            <p className="text-xs text-gray-500 leading-none mt-0.5">Sign Language → Voice &amp; Text</p>
+            <h1 className="text-base font-bold leading-tight tracking-tight">GestureTalk</h1>
+            <p className="text-[10px] text-cyan-700 leading-none mt-0.5 font-medium uppercase tracking-widest">
+              Sign Language · Voice · Text
+            </p>
           </div>
         </div>
 
-        {/* Live region so screen readers announce gesture changes */}
+        {/* Speaking / gesture status */}
         <div
           aria-live="polite"
           aria-atomic="true"
           className="flex items-center gap-2 text-xs text-gray-400"
         >
+          <span className="sr-only">{statusText}</span>
+
+          {/* Glowing dot */}
           <span
             aria-hidden="true"
-            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-              isDetecting ? 'bg-cyan-400 animate-pulse' : 'bg-gray-600'
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors ${
+              isSpeaking
+                ? 'bg-emerald-400 animate-pulse speaking-glow'
+                : isDetecting
+                ? 'bg-cyan-400 animate-pulse status-dot-active'
+                : 'bg-gray-600'
             }`}
           />
-          <span className="sr-only">{statusText}</span>
-          <span aria-hidden="true">
-            {isDetecting ? `Detecting: ${currentGesture?.label}` : 'Watching…'}
+
+          <span aria-hidden="true" className="hidden sm:inline">
+            {isSpeaking
+              ? 'Speaking…'
+              : isDetecting
+              ? `Detecting: ${currentGesture?.label}`
+              : 'Watching…'}
           </span>
+
+          {/* Stop speech button (visible only while speaking) */}
+          {isSpeaking && (
+            <button
+              onClick={stop}
+              aria-label="Stop speaking"
+              className="ml-1 text-[10px] bg-red-900/50 hover:bg-red-800/70 border border-red-800/60 text-red-300 px-2 py-0.5 rounded-full transition-colors min-h-[28px]"
+            >
+              ■ Stop
+            </button>
+          )}
         </div>
       </header>
 
@@ -219,7 +264,7 @@ export default function GestureTalkApp() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveTab(tab.id)}
                   onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
-                  className={`flex-1 min-h-[44px] py-2 text-xs flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                  className={`flex-1 min-h-[44px] py-1.5 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0.5 transition-colors ${
                     isActive
                       ? 'text-cyan-400 border-b-2 border-cyan-500 bg-gray-800/40'
                       : 'text-gray-500 hover:text-gray-300'
@@ -230,7 +275,7 @@ export default function GestureTalkApp() {
                   {tab.id === 'log' && messages.length > 0 && (
                     <span
                       aria-label={`${messages.length} messages`}
-                      className="text-[10px] bg-cyan-800 text-cyan-200 rounded-full px-1 leading-tight"
+                      className="text-[9px] bg-cyan-800 text-cyan-200 rounded-full px-1 leading-tight"
                     >
                       {messages.length}
                     </span>
@@ -262,6 +307,7 @@ export default function GestureTalkApp() {
                         text={sentence}
                         currentGesture={currentGesture}
                         progress={dwellProgress}
+                        isSpeaking={isSpeaking}
                         onSpeak={handleSpeak}
                         onClear={handleClear}
                         onBackspace={handleBackspace}
@@ -287,7 +333,7 @@ export default function GestureTalkApp() {
                           />
                           <button
                             onClick={handleTypedSpeak}
-                            disabled={!typedInput.trim()}
+                            disabled={!typedInput.trim() || isSpeaking}
                             aria-label="Speak typed text aloud"
                             className="bg-cyan-700 hover:bg-cyan-600 disabled:bg-gray-700 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] px-4 rounded-lg text-sm font-bold transition-colors"
                           >
@@ -295,7 +341,7 @@ export default function GestureTalkApp() {
                           </button>
                         </div>
                         <p id={`${typedInputId}-hint`} className="text-xs text-gray-600">
-                          Press Enter or the speaker button to read text aloud
+                          Press Enter or the speaker button to read aloud
                         </p>
                       </div>
 
@@ -317,7 +363,12 @@ export default function GestureTalkApp() {
 
                   {/* ── Phrases tab ── */}
                   {tab.id === 'phrases' && (
-                    <QuickPhrases onSpeak={handlePhrase} />
+                    <QuickPhrases
+                      onSpeak={handlePhrase}
+                      customPhrases={customPhrases}
+                      onAddPhrase={addPhrase}
+                      onRemovePhrase={removePhrase}
+                    />
                   )}
 
                   {/* ── Guide tab ── */}
@@ -344,7 +395,21 @@ export default function GestureTalkApp() {
                         messages={messages}
                         onRepeat={handleRepeat}
                         maxHeight="100%"
+                        showExport={messages.length > 0}
                       />
+                    </div>
+                  )}
+
+                  {/* ── Settings tab ── */}
+                  {tab.id === 'settings' && (
+                    <div className="flex flex-col gap-6">
+                      <VoiceSettings
+                        voices={voices}
+                        isSpeaking={isSpeaking}
+                        onUpdate={updateSettings}
+                        onTest={handleVoiceTest}
+                      />
+                      <StatsPanel stats={stats} />
                     </div>
                   )}
                 </div>
