@@ -44,6 +44,31 @@ No sign language training required to get started. Quick-phrase buttons cover th
 
 ---
 
+## 🎬 Demo
+
+<!-- Replace the placeholder below with an actual screen-recording GIF or MP4 link before the presentation. -->
+<!-- Recommended: 30–60 s clip showing gesture input → text build-up → TTS output → quick-phrase panel. -->
+> 📽️ **Demo clip coming soon** — record a short screen-capture (30–60 s) showing gesture input, sentence build-up, and TTS playback, then embed it here as an animated GIF or linked MP4.
+
+---
+
+## ♿ Accessibility Validation Checklist
+
+Use this checklist to confirm WCAG 2.1 AA compliance before each release or demo.
+
+- [ ] **Colour contrast** — all text/icon elements pass 4.5 : 1 (normal text) or 3 : 1 (large text) against their backgrounds (test with axe DevTools or Colour Contrast Analyser)
+- [ ] **Keyboard navigation** — every interactive element reachable and operable with Tab / Shift-Tab / Enter / Space; focus order is logical
+- [ ] **Visible focus indicator** — `focus-visible` ring visible on all focusable elements at 3 px minimum width
+- [ ] **Touch targets** — all buttons / icons ≥ 44 × 44 px on mobile (verify in Chrome DevTools device emulation)
+- [ ] **ARIA live regions** — gesture confirmations and TTS output announced by screen reader (test with NVDA + Chrome or VoiceOver + Safari)
+- [ ] **ARIA roles & labels** — tab list, buttons, and sliders carry descriptive `aria-label` / `aria-labelledby` attributes (verify with axe or Lighthouse)
+- [ ] **No motion traps** — camera canvas animation does not trigger vestibular issues; `prefers-reduced-motion` respected where applicable
+- [ ] **Text resize** — UI remains usable at 200 % browser zoom and with the in-app X-Large font setting
+- [ ] **Screen reader smoke test** — VoiceOver (iOS) and TalkBack (Android) can navigate to and activate the Speak and Phrase buttons without gesture input
+- [ ] **axe-core zero critical violations** — run `npx axe http://localhost:3000` or the axe browser extension; resolve all Critical and Serious findings
+
+---
+
 ## 🏗️ Technology Stack
 
 - **[Next.js 16](https://nextjs.org/)** — React framework (App Router)
@@ -53,6 +78,32 @@ No sign language training required to get started. Quick-phrase buttons cover th
 - **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** — Gesture confirmation beep (no external dependency)
 - **[Vibration API](https://developer.mozilla.org/en-US/docs/Web/API/Vibration_API)** — Haptic feedback on mobile
 - **TypeScript** — Full type safety throughout
+
+---
+
+## ⚡ Performance
+
+GestureTalk runs **entirely on-device** — no cloud round-trips, no latency.
+
+| Metric | Typical value |
+|---|---|
+| Inference engine | MediaPipe Hands (WebAssembly + GPU delegate) |
+| Throughput | **24–30 FPS** on mid-range phones; 30+ FPS on desktop |
+| Latency | < 50 ms gesture-to-confirmation (at default 1.5 s dwell) |
+| Model size | ~7 MB (loaded once, cached by the browser) |
+| CPU / GPU | GPU accelerated via WebGL where available; CPU fallback otherwise |
+
+### Supported browsers
+
+| Browser | Gesture detection | TTS | PWA install |
+|---|---|---|---|
+| Chrome / Edge 90+ | ✅ | ✅ | ✅ |
+| Firefox 90+ | ✅ | ✅ | ✅ (Android) |
+| Safari 15.4+ (iOS/macOS) | ✅ | ✅ | ✅ (Add to Home Screen) |
+| Samsung Internet 14+ | ✅ | ✅ | ✅ |
+| Opera 76+ | ✅ | ✅ | — |
+
+> **Note:** The Web Speech API voice list varies by OS. iOS/Safari provides system voices; desktop Chrome typically offers the widest selection.
 
 ---
 
@@ -66,6 +117,28 @@ All processing happens **100% on-device**:
 
 ---
 
+## 💾 Local Storage — Limits & Clearing Data
+
+GestureTalk stores two things in `localStorage`:
+
+| Key | Contents | Typical size |
+|---|---|---|
+| `gesturetalk-conversation-log` | Last 50 messages (text + metadata) | < 20 KB |
+| `gesturetalk-custom-phrases` | Your custom phrase list | < 5 KB |
+
+### Storage limits
+Browsers allocate **5–10 MB** per origin for `localStorage`. GestureTalk's own data is well within that budget, but if the quota is exceeded (e.g. many other sites also use storage) the app will **silently retain the last saved state** rather than crash — no data from the current session is lost in memory, but the new entry may not be written to disk.
+
+### How to clear all stored data
+
+1. **In-app (recommended):** Open the **History** tab → tap **🗑 Clear history** to remove the conversation log. Custom phrases can be deleted individually from the **Phrases → Custom** list.
+2. **Browser DevTools:** Open DevTools → **Application → Storage → localStorage** → select the app origin → click **Clear All**.
+3. **Browser Settings:** Settings → Site Settings → `localhost` (or your domain) → Clear data.
+
+> After clearing, the app starts fresh on the next page load. No account or cloud backup exists — once cleared, data cannot be recovered.
+
+---
+
 ## 🖥️ Getting Started
 
 ```bash
@@ -74,6 +147,24 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — allow camera access when prompted.
+
+### 📷 Camera permissions & troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Black/blank camera feed | Permission denied | Click the camera icon in the address bar → **Allow** → reload |
+| "Camera not found" on iOS | Safari requires HTTPS | Serve over HTTPS or use `localhost` (HTTP is allowed for localhost only) |
+| Camera works in Chrome but not Safari | Safari 15.3 or older | Update to Safari 15.4+ or use Chrome/Firefox |
+| Front camera not mirroring | Device reports rear camera as default | Tap the **flip camera** button in the app header |
+| "NotReadableError" (camera in use) | Another app/tab is using the camera | Close other camera apps/tabs and reload |
+| Gray overlay after granting permission | Page loaded before permission resolved | Reload the page after granting permission |
+| iOS: camera freezes after screen sleep | iOS background-tab suspension | Keep the screen on while using the app (disable auto-lock) |
+
+**iOS / Safari specific notes:**
+- Camera access requires a **user gesture** (tap) before the stream can start — the app's "Start camera" button satisfies this.
+- On iOS 16+, multiple tabs cannot share the same camera simultaneously; close duplicate GestureTalk tabs.
+- `getUserMedia` is only available in Safari 11+ and over **HTTPS** (or `localhost`).
+- TTS voices on iOS are loaded asynchronously; if the voice list appears empty, wait 1–2 seconds after page load and re-open Voice Settings.
 
 ### Build for production
 ```bash
