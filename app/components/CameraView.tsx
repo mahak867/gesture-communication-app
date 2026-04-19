@@ -332,8 +332,26 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
         };
         loop();
       })
-      .catch(() => {
-        setCamError('Camera access denied. Please allow camera permissions and reload.');
+      .catch((err: unknown) => {
+        let msg: string;
+        if (err instanceof DOMException) {
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            msg = 'Camera permission denied. Click the camera icon in your browser address bar → Allow, then reload.';
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            msg = 'No camera found on this device. Please connect a camera and reload.';
+          } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            msg = 'Camera is already in use by another app or tab. Close them, then reload.';
+          } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+            msg = 'Camera does not support the required settings. Try switching cameras below.';
+          } else if (err.name === 'NotSupportedError') {
+            msg = 'Camera API not supported in this browser. Try Chrome, Firefox, or Safari 15.4+.';
+          } else {
+            msg = `Camera error (${err.name}). Please reload and try again.`;
+          }
+        } else {
+          msg = 'Camera access failed. Please allow camera permissions and reload.';
+        }
+        setCamError(msg);
       });
 
     return () => {
@@ -392,12 +410,20 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
           <span className="text-5xl" aria-hidden="true">📷</span>
           <p className="text-red-400 font-semibold text-base">Camera Unavailable</p>
           <p className="text-gray-400 text-sm">{camError}</p>
-          <button
-            onClick={() => setFacingMode((m) => m === 'user' ? 'environment' : 'user')}
-            className="mt-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm px-4 py-2 rounded-lg transition-colors min-h-[44px]"
-          >
-            Try other camera
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-cyan-700 hover:bg-cyan-600 border border-cyan-700 text-white text-sm px-4 py-2 rounded-lg transition-colors min-h-[44px]"
+            >
+              Reload page
+            </button>
+            <button
+              onClick={() => setFacingMode((m) => m === 'user' ? 'environment' : 'user')}
+              className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm px-4 py-2 rounded-lg transition-colors min-h-[44px]"
+            >
+              Try other camera
+            </button>
+          </div>
         </div>
       )}
 

@@ -28,8 +28,8 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 export default function GestureTalkApp() {
   const { speak, stop, voices, isSpeaking, updateSettings } = useSpeech();
   const { stats, incrementGesture, incrementMessage } = useStats();
-  const { phrases: customPhrases, addPhrase, removePhrase } = useCustomPhrases();
-  const { messages, addMessage, clearMessages } = useConversationLog();
+  const { phrases: customPhrases, addPhrase, removePhrase, clearPhrases, storageWarning: phraseStorageWarning, dismissStorageWarning: dismissPhraseWarning } = useCustomPhrases();
+  const { messages, addMessage, clearMessages, storageWarning: logStorageWarning, dismissStorageWarning: dismissLogWarning } = useConversationLog();
   const tabsId = useId();
 
   // Sentence builder with undo history
@@ -50,6 +50,10 @@ export default function GestureTalkApp() {
   // Currently detected gesture + dwell progress
   const [currentGesture, setCurrentGesture] = useState<GestureResult | null>(null);
   const [dwellProgress, setDwellProgress] = useState(0);
+
+  // Confirmation states for destructive actions
+  const [confirmClearLog, setConfirmClearLog] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   // Configurable dwell time in ms (persisted to localStorage)
   const [dwellMs, setDwellMs] = useState<number>(() => {
@@ -201,6 +205,22 @@ export default function GestureTalkApp() {
     setFontSize(size);
     try { localStorage.setItem('gesturetalk-fontsize', String(size)); } catch { /* ignore */ }
   }, []);
+
+  /* ── Clear all app data ── */
+  const handleClearAllData = useCallback(() => {
+    clearMessages();
+    clearPhrases();
+    setDwellMs(1500);
+    setAutoSpeak(false);
+    setFontSize(1);
+    try {
+      ['gesturetalk-dwell-ms', 'gesturetalk-autospeak', 'gesturetalk-fontsize',
+        'gesturetalk-voice-settings'].forEach((k) => localStorage.removeItem(k));
+    } catch { /* ignore */ }
+    setConfirmClearAll(false);
+    // Reload so voice settings component also resets to defaults
+    window.location.reload();
+  }, [clearMessages, clearPhrases]);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -498,14 +518,33 @@ export default function GestureTalkApp() {
                         <span className="text-xs uppercase text-gray-500 font-bold">
                           Conversation History
                         </span>
-                        {messages.length > 0 && (
+                        {messages.length > 0 && !confirmClearLog && (
                           <button
-                            onClick={clearMessages}
+                            onClick={() => setConfirmClearLog(true)}
                             aria-label="Clear all conversation history"
                             className="text-xs text-red-500 hover:text-red-400 transition-colors min-h-[44px] px-2"
                           >
                             Clear all
                           </button>
+                        )}
+                        {confirmClearLog && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Clear history?</span>
+                            <button
+                              onClick={() => { clearMessages(); setConfirmClearLog(false); }}
+                              aria-label="Confirm clear all history"
+                              className="text-xs text-red-400 hover:text-red-300 font-semibold min-h-[36px] px-2 transition-colors"
+                            >
+                              Yes, clear
+                            </button>
+                            <button
+                              onClick={() => setConfirmClearLog(false)}
+                              aria-label="Cancel clear"
+                              className="text-xs text-gray-500 hover:text-gray-300 min-h-[36px] px-2 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         )}
                       </div>
                       <ConversationLog
@@ -612,6 +651,67 @@ export default function GestureTalkApp() {
                       </div>
 
                       <StatsPanel stats={stats} />
+
+                      {/* Data & Storage */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">💾 Data &amp; Storage</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3">
+                          <p className="text-[11px] text-gray-500 leading-relaxed">
+                            All data is stored locally on this device only — nothing is sent to any server.
+                            Conversation history (last 50 messages) and custom phrases are saved in your browser&apos;s localStorage.
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => { clearMessages(); setConfirmClearAll(false); }}
+                              aria-label="Clear conversation history"
+                              className="flex items-center gap-2 text-sm text-left text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-3 min-h-[44px] transition-colors"
+                            >
+                              <span aria-hidden="true">🗑️</span>
+                              Clear conversation history
+                            </button>
+                            <button
+                              onClick={clearPhrases}
+                              aria-label="Clear all custom phrases"
+                              className="flex items-center gap-2 text-sm text-left text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-3 min-h-[44px] transition-colors"
+                            >
+                              <span aria-hidden="true">💬</span>
+                              Clear custom phrases
+                            </button>
+                            {!confirmClearAll ? (
+                              <button
+                                onClick={() => setConfirmClearAll(true)}
+                                aria-label="Clear all app data and reset settings"
+                                className="flex items-center gap-2 text-sm text-left text-red-400 hover:text-red-300 bg-gray-800 hover:bg-red-950/40 border border-gray-700 hover:border-red-800/60 rounded-lg px-3 min-h-[44px] transition-colors"
+                              >
+                                <span aria-hidden="true">⚠️</span>
+                                Clear all data &amp; reset settings…
+                              </button>
+                            ) : (
+                              <div className="flex flex-col gap-2 bg-red-950/30 border border-red-800/50 rounded-lg p-3">
+                                <p className="text-xs text-red-300 leading-relaxed">
+                                  This will delete all conversation history, custom phrases, and reset all settings to defaults. The page will reload. This cannot be undone.
+                                </p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleClearAllData}
+                                    aria-label="Confirm clear all data"
+                                    className="flex-1 bg-red-700 hover:bg-red-600 text-white text-sm font-semibold min-h-[44px] rounded-lg transition-colors"
+                                  >
+                                    Yes, clear everything
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmClearAll(false)}
+                                    aria-label="Cancel"
+                                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm min-h-[44px] rounded-lg transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -624,6 +724,31 @@ export default function GestureTalkApp() {
       {/* First-run onboarding */}
       {showOnboarding && (
         <OnboardingOverlay onDismiss={() => setShowOnboarding(false)} />
+      )}
+
+      {/* Storage quota warning toast */}
+      {(logStorageWarning || phraseStorageWarning) && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 bg-amber-900/95 border border-amber-700/70 text-amber-100 text-xs rounded-xl px-4 py-3 shadow-xl max-w-sm w-[calc(100%-2rem)]"
+        >
+          <span className="text-base flex-shrink-0 mt-0.5" aria-hidden="true">⚠️</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-amber-200">Storage quota reached</p>
+            <p className="mt-0.5 text-amber-300/80 leading-relaxed">
+              Some data could not be saved to this device. Clear conversation history or custom phrases in
+              Settings → Data &amp; Storage to free up space.
+            </p>
+          </div>
+          <button
+            onClick={() => { dismissLogWarning(); dismissPhraseWarning(); }}
+            aria-label="Dismiss storage warning"
+            className="flex-shrink-0 text-amber-400 hover:text-amber-200 text-lg leading-none transition-colors -mt-0.5 ml-1"
+          >
+            ×
+          </button>
+        </div>
       )}
     </main>
   );
