@@ -23,13 +23,16 @@ function loadFromStorage(): CustomPhrase[] {
 export function useCustomPhrases() {
   // Lazy initializer — runs once at mount, avoids a setState-in-effect
   const [phrases, setPhrases] = useState<CustomPhrase[]>(loadFromStorage);
+  // Set to true when localStorage quota is exceeded so the UI can warn the user
+  const [storageWarning, setStorageWarning] = useState(false);
 
   const persist = useCallback((next: CustomPhrase[]) => {
     setPhrases(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
-      // storage quota exceeded — silently skip
+      // Defer setState outside the updater to satisfy react-hooks/set-state-in-effect
+      setTimeout(() => setStorageWarning(true), 0);
     }
   }, []);
 
@@ -49,5 +52,12 @@ export function useCustomPhrases() {
     [phrases, persist],
   );
 
-  return { phrases, addPhrase, removePhrase };
+  const clearPhrases = useCallback(() => {
+    persist([]);
+    setStorageWarning(false);
+  }, [persist]);
+
+  const dismissStorageWarning = useCallback(() => setStorageWarning(false), []);
+
+  return { phrases, addPhrase, removePhrase, clearPhrases, storageWarning, dismissStorageWarning };
 }
