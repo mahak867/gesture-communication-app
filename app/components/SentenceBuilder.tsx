@@ -101,7 +101,7 @@ export default function SentenceBuilder({
       {/* ── Text display ── */}
       <div
         className="min-h-[90px] max-h-[160px] overflow-y-auto bg-gray-800 border border-gray-700 rounded-xl p-4 font-mono leading-relaxed break-words"
-        style={{ fontSize: `${fontSize}rem` }}
+        style={{ fontSize: `${fontSize}em` }}
         aria-label="Sentence being built"
         aria-live="polite"
         aria-atomic="false"
@@ -175,7 +175,7 @@ export default function SentenceBuilder({
           disabled={!text.trim() || isSpeaking}
           aria-label={isSpeaking ? 'Speaking…' : 'Speak sentence aloud (gesture: thumbs up)'}
           aria-disabled={!text.trim() || isSpeaking}
-          className={`col-span-${onUndo ? '2' : '1'} text-white font-bold min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+          className={`${onUndo ? 'col-span-2' : 'col-span-1'} text-white font-bold min-h-[44px] rounded-xl text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
             isSpeaking
               ? 'bg-cyan-500 animate-pulse cursor-not-allowed'
               : 'bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:cursor-not-allowed'
