@@ -22,12 +22,16 @@ function loadSpeechSettings(): SpeechSettings {
 export function useSpeech(initialSettings?: Partial<SpeechSettings>) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const persisted = loadSpeechSettings();
-  const settingsRef = useRef<SpeechSettings>({
-    rate: initialSettings?.rate ?? persisted.rate,
-    pitch: initialSettings?.pitch ?? persisted.pitch,
-    voiceIndex: initialSettings?.voiceIndex ?? persisted.voiceIndex,
-  });
+  // Use a lazy initializer so localStorage is only read once at mount, not every render
+  const settingsRef = useRef<SpeechSettings | null>(null);
+  if (settingsRef.current === null) {
+    const persisted = loadSpeechSettings();
+    settingsRef.current = {
+      rate: initialSettings?.rate ?? persisted.rate,
+      pitch: initialSettings?.pitch ?? persisted.pitch,
+      voiceIndex: initialSettings?.voiceIndex ?? persisted.voiceIndex,
+    };
+  }
 
   // Load available voices (async in some browsers)
   useEffect(() => {
@@ -42,7 +46,7 @@ export function useSpeech(initialSettings?: Partial<SpeechSettings>) {
   }, []);
 
   const updateSettings = useCallback((patch: Partial<SpeechSettings>) => {
-    const next = { ...settingsRef.current, ...patch };
+    const next = { ...settingsRef.current!, ...patch };
     settingsRef.current = next;
     try {
       localStorage.setItem(SPEECH_STORAGE_KEY, JSON.stringify(next));
@@ -53,7 +57,7 @@ export function useSpeech(initialSettings?: Partial<SpeechSettings>) {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
-    const { rate, pitch, voiceIndex } = settingsRef.current;
+    const { rate, pitch, voiceIndex } = settingsRef.current!;
     utt.rate = rate;
     utt.pitch = pitch;
     const available = window.speechSynthesis.getVoices();

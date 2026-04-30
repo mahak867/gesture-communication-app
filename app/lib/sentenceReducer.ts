@@ -19,7 +19,8 @@ export function sentenceReducer(state: SentenceState, action: SentenceAction): S
     case 'append':
       return { current: state.current + action.char, history: pushHistory() };
     case 'space':
-      if (state.current.endsWith(' ')) return state;
+      // Prevent leading spaces and consecutive spaces
+      if (state.current === '' || state.current.endsWith(' ')) return state;
       return { current: state.current + ' ', history: pushHistory() };
     case 'backspace':
       if (state.current.length === 0) return state;

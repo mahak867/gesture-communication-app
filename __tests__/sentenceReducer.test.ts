@@ -95,3 +95,10 @@ describe('sentenceReducer', () => {
     });
   });
 });
+
+  describe('space edge cases', () => {
+    it('does not add a leading space on an empty sentence', () => {
+      const next = sentenceReducer(empty, { type: 'space' });
+      expect(next).toBe(empty); // no-op: empty sentence
+    });
+  });
