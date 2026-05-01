@@ -198,7 +198,7 @@ function classifyLocally(
 
   // For left hand, thumb tip extends to the right (larger x); right hand extends left
   const isLeft = handedness.toLowerCase() === "left";
-  const thumbUp = isLeft ? lm[4][0] > lm[2][0] : lm[4][0] < lm[2][0];
+  const thumbUp = isLeft ? lm[4][0] > lm[3][0] : lm[4][0] < lm[3][0];
   const indexUp = lm[8][1] < lm[6][1];
   const middleUp = lm[12][1] < lm[10][1];
   const ringUp = lm[16][1] < lm[14][1];

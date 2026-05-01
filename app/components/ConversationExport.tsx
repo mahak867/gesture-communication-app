@@ -2,6 +2,9 @@
 import { useState } from "react";
 import type { Message } from "./ConversationLog";
 
+// Shared urgent keyword list — keep in sync with caregiver/page.tsx
+const URGENT_KEYWORDS = ["help", "emergency", "pain", "hurt", "can't breathe", "severe", "911", "urgent", "call", "doctor"];
+
 interface Props {
   messages: Message[];
 }
@@ -25,7 +28,7 @@ export default function ConversationExport({ messages }: Props) {
     const rows = messages
       .map((m) => {
         const time = new Date(m.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-        const urgent = ["help", "emergency", "pain", "can't breathe", "doctor"].some((k) =>
+        const urgent = URGENT_KEYWORDS.some((k) =>
           m.text.toLowerCase().includes(k)
         );
         const escapedText = `"${m.text.replace(/"/g, '""')}"`;
@@ -56,7 +59,7 @@ export default function ConversationExport({ messages }: Props) {
     const rows = messages
       .map((m) => {
         const time = new Date(m.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-        const urgent = ["help", "emergency", "pain", "can't breathe", "doctor"].some((k) =>
+        const urgent = URGENT_KEYWORDS.some((k) =>
           m.text.toLowerCase().includes(k)
         );
         return `<tr style="background:${urgent ? "#fef2f2" : "#fff"}">
