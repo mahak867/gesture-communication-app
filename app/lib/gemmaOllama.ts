@@ -198,7 +198,7 @@ function classifyLocally(
 
   // For left hand, thumb tip extends to the right (larger x); right hand extends left
   const isLeft = handedness.toLowerCase() === "left";
-  const thumbUp = isLeft ? lm[4][0] > lm[3][0] : lm[4][0] < lm[3][0];
+  const thumbExtended = isLeft ? lm[4][0] > lm[3][0] : lm[4][0] < lm[3][0];
   const indexUp = lm[8][1] < lm[6][1];
   const middleUp = lm[12][1] < lm[10][1];
   const ringUp = lm[16][1] < lm[14][1];
@@ -207,15 +207,15 @@ function classifyLocally(
   const allCurled = !indexUp && !middleUp && !ringUp && !pinkyUp;
   const allUp = indexUp && middleUp && ringUp && pinkyUp;
 
-  if (allCurled && !thumbUp) return { letter: "A", confidence: 0.9, alternatives: ["E", "S"] };
-  if (allCurled && thumbUp) return { letter: "A", confidence: 0.85, alternatives: ["A", "T"] };
-  if (allUp && thumbUp) return { letter: "B", confidence: 0.88, alternatives: ["4", "F"] };
+  if (allCurled && !thumbExtended) return { letter: "A", confidence: 0.9, alternatives: ["E", "S"] };
+  if (allCurled && thumbExtended) return { letter: "A", confidence: 0.85, alternatives: ["A", "T"] };
+  if (allUp && thumbExtended) return { letter: "B", confidence: 0.88, alternatives: ["4", "F"] };
   if (indexUp && !middleUp && !ringUp && !pinkyUp) return { letter: "D", confidence: 0.85, alternatives: ["1", "G"] };
   if (indexUp && middleUp && !ringUp && !pinkyUp) return { letter: "U", confidence: 0.82, alternatives: ["V", "H"] };
   if (pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "I", confidence: 0.88, alternatives: ["J"] };
-  if (thumbUp && pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "Y", confidence: 0.9, alternatives: ["6"] };
+  if (thumbExtended && pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "Y", confidence: 0.9, alternatives: ["6"] };
   if (indexUp && pinkyUp && !middleUp && !ringUp) return { letter: "L", confidence: 0.85, alternatives: [] };
-  if (allUp && !thumbUp) return { letter: "4", confidence: 0.8, alternatives: ["B"] };
+  if (allUp && !thumbExtended) return { letter: "4", confidence: 0.8, alternatives: ["B"] };
 
   return { letter: "?", confidence: 0.3, alternatives: ["A", "B", "C"] };
 }
