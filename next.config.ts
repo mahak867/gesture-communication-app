@@ -14,7 +14,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net",
       "worker-src 'self' blob:",
       // MediaPipe WASM binary + Tasks model
-      "connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com",
+      "connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com http://localhost:11434",
       "style-src 'self' 'unsafe-inline'",
       // Camera feed rendered to canvas
       "img-src 'self' data: blob:",
