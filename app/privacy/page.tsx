@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Privacy Policy & DPA — GestureTalk",
@@ -8,9 +9,9 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-10 text-gray-200 bg-gray-950 min-h-screen">
-      <a href="/" className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-2 mb-8">
+      <Link href="/" className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-2 mb-8">
         ← Back to GestureTalk
-      </a>
+      </Link>
 
       <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy & Data Processing Agreement</h1>
       <p className="text-gray-400 text-sm mb-8">Last updated: {new Date().toLocaleDateString("en-IN")}</p>

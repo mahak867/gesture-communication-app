@@ -162,7 +162,7 @@ export default function ModelPipeline({
                       {stage.id === "vision" && visionDescription && `→ "${visionDescription}"`}
                       {stage.id === "ensemble" && lastGesture && `→ "${lastGesture}" confirmed`}
                       {stage.id === "text" && streamingText && `→ ${streamingText.split("|")[0]?.trim()}`}
-                      {stage.id === "translate" && translation && `→ ${translation}`}
+                      {stage.id === "translate" && translation && `→ [${translationLang?.toUpperCase() ?? ""}] ${translation}`}
                       {stage.id === "tts" && `→ 🔊 spoken`}
                     </div>
                   )}
