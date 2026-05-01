@@ -127,19 +127,16 @@ export function usePipeline() {
       setStage("ensemble", { status: "running" });
       const ensembleStart = Date.now();
       // Merge MediaPipe landmark result with Gemma Vision result.
-      // Strategy: vision result wins only when its confidence exceeds the
-      // landmark confidence by a meaningful margin (≥0.15). Otherwise keep
-      // the landmark result which is faster and always available.
-      const landmarkConf = 0.70; // MediaPipe landmark classifier baseline
-      const visionConf = visionDesc ? 0.75 : 0;  // non-zero only when vision ran
-      if (visionConf > 0 && visionConf > landmarkConf + 0.15 && finalGesture !== opts.landmarkGesture) {
-        // Vision already updated finalGesture in Stage 2 — keep it
-      } else if (visionConf > 0 && visionConf >= landmarkConf && finalGesture !== opts.landmarkGesture) {
-        // Vision marginally better — keep vision result
-      } else {
-        // Fall back to landmark result when vision is offline or lower confidence
+      // Vision result wins only when its confidence exceeds the landmark
+      // confidence by a meaningful margin; otherwise keep the faster landmark result.
+      const LANDMARK_CONF = 0.70; // MediaPipe landmark classifier baseline
+      const VISION_CONF = 0.75;   // Gemma Vision result confidence when available
+      const OVERRIDE_MARGIN = 0.15; // Vision must beat landmark by this margin to override
+      if (!visionDesc || VISION_CONF < LANDMARK_CONF + OVERRIDE_MARGIN) {
+        // Vision offline or not confident enough — revert to landmark result
         finalGesture = opts.landmarkGesture;
       }
+      // else: vision already updated finalGesture in Stage 2 — keep it
       const ensembleMs = Date.now() - ensembleStart;
       setStage("ensemble", { status: "done", latencyMs: Math.max(ensembleMs, 1) });
     }
