@@ -28,15 +28,18 @@ import ProfileSelector from './components/ProfileSelector';
 import SLPMode from './components/SLPMode';
 import GestureTrainer from './components/GestureTrainer';
 import OnDeviceBadge from './components/OnDeviceBadge';
+import ModelPipeline from './components/ModelPipeline';
+import { usePipeline } from './hooks/usePipeline';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 
-type Tab = 'builder' | 'phrases' | 'emergency' | 'guide' | 'log' | 'settings';
+type Tab = 'builder' | 'phrases' | 'emergency' | 'guide' | 'log' | 'pipeline' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'builder',   label: 'Build',     icon: '✏️' },
   { id: 'phrases',   label: 'Phrases',   icon: '💬' },
   { id: 'emergency', label: 'Emergency', icon: '🚨' },
+  { id: 'pipeline',  label: 'AI',        icon: '🤖' },
   { id: 'guide',     label: 'Guide',     icon: '📖' },
   { id: 'log',       label: 'Log',       icon: '📋' },
   { id: 'settings',  label: 'Settings',  icon: '⚙️' },
@@ -52,6 +55,12 @@ export default function GestureTalkApp() {
   const { highContrast, toggleHighContrast } = useHighContrast();
   const { oneHandedMode, setOneHandedMode } = useOneHanded();
   const { profiles, activeProfile, activeId: activeProfileId, switchProfile, addProfile, removeProfile } = useProfiles();
+  const { state: pipeline, run: runPipeline, reset: resetPipeline } = usePipeline();
+  const [targetLang, setTargetLang] = useState<string>(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem('gesturetalk-lang') ?? 'en') : 'en'
+  );
+  // Frame capture ref — updated by CameraView
+  const lastFrameRef = useRef<string | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState(() => {
     if (typeof window === 'undefined') return 75;
     return Number(localStorage.getItem('gesturetalk-confidence') ?? 75);
@@ -127,7 +136,7 @@ export default function GestureTalkApp() {
 
   // Refs for tab buttons (keyboard arrow-key navigation)
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
-    builder: null, phrases: null, emergency: null, guide: null, log: null, settings: null,
+    builder: null, phrases: null, emergency: null, pipeline: null, guide: null, log: null, settings: null,
   });
 
   /* ── Helpers ── */
@@ -151,6 +160,24 @@ export default function GestureTalkApp() {
     (gesture: GestureResult) => {
       incrementGesture();
       track('gesture_detected', { id: gesture.id, label: gesture.label, category: gesture.category });
+      void haptic;
+
+      // Run the full multi-modal pipeline
+      runPipeline({
+        landmarkGesture: gesture.label,
+        landmarkMs: 0,
+        frameBase64: lastFrameRef.current,
+        partialSentence: sentence,
+        context: gemmaContext,
+        targetLang,
+        onComplete: (finalGesture, completions) => {
+          dispatchSentence({ type: 'append', char: finalGesture });
+          // Show pipeline completions in state
+          if (completions.length > 0) {
+            // completions are surfaced via pipeline.state.completions
+          }
+        },
+      });
 
       if (gesture.category === 'command') {
         if (gesture.id === 'five') {
@@ -182,7 +209,7 @@ export default function GestureTalkApp() {
         }, 3000);
       }
     },
-    [incrementGesture],
+    [incrementGesture, track, runPipeline, sentence, gemmaContext, targetLang],
   );
 
   const handleGestureChange = useCallback(
@@ -507,26 +534,65 @@ export default function GestureTalkApp() {
                         fontSize={fontSize}
                       />
 
-                      {/* Gemma 4 Word Prediction */}
-                      {sentence.trim().length >= 2 && (
-                        <div>
-                          <div className="text-xs uppercase text-gray-500 font-bold mb-2">
-                            🤖 Gemma 4 Suggestions
-                          </div>
-                          <WordPrediction
-                            partialText={sentence}
-                            context={gemmaContext}
-                            language="en"
-                            onSelect={(completion) => {
-                              speakAndLogFn(completion, 'typed');
-                              dispatchSentence({ type: 'clear' });
-                              track('gemma_completion_used', { completion });
-                            }}
-                          />
+                      {/* Multi-modal pipeline status (compact) */}
+                      {pipeline.isRunning && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500 font-bold uppercase">⚡ Pipeline Running</p>
+                          <ModelPipeline stages={pipeline.stages} compact />
                         </div>
                       )}
 
-                      {/* Context selector for Gemma */}
+                      {/* Gemma 4 completions from pipeline */}
+                      {(pipeline.completions.length > 0 || pipeline.streamingCompletions) && !pipeline.isRunning && (
+                        <div>
+                          <div className="text-xs uppercase text-gray-500 font-bold mb-2">
+                            🤖 Gemma 4 Suggestions
+                            {pipeline.visionDescription && (
+                              <span className="normal-case text-gray-600 ml-2 font-normal">
+                                · vision: {pipeline.visionDescription}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {(pipeline.completions.length > 0
+                              ? pipeline.completions
+                              : pipeline.streamingCompletions.split('|').map(s => s.trim()).filter(Boolean)
+                            ).map((completion, i) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  speakAndLogFn(completion, 'typed');
+                                  dispatchSentence({ type: 'clear' });
+                                  track('gemma_completion_used', { completion });
+                                }}
+                                className="text-left bg-gray-800/70 hover:bg-gray-700 border border-gray-700/60 hover:border-cyan-700/60 text-white text-sm px-4 py-3 rounded-xl transition-colors min-h-[48px] touch-manipulation"
+                                aria-label={`Use suggestion: ${completion}`}
+                              >
+                                <span className="text-cyan-400 mr-2 text-xs font-bold">{i + 1}</span>
+                                {completion}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Streaming indicator */}
+                      {pipeline.isRunning && pipeline.streamingCompletions && (
+                        <div className="bg-gray-800/40 border border-gray-700/40 rounded-xl p-3">
+                          <p className="text-xs text-gray-500 mb-1">Gemma typing…</p>
+                          <p className="text-gray-300 text-sm">{pipeline.streamingCompletions}</p>
+                        </div>
+                      )}
+
+                      {/* Translation badge */}
+                      {pipeline.translation && (
+                        <div className="flex items-center gap-2 bg-blue-900/20 border border-blue-700/30 rounded-lg px-3 py-2">
+                          <span className="text-blue-400 text-xs">🌐</span>
+                          <span className="text-blue-300 text-sm">{pipeline.translation}</span>
+                        </div>
+                      )}
+
+                      {/* Context selector for pipeline */}
                       <div className="flex gap-2 flex-wrap">
                         {(['medical', 'daily', 'emergency', 'general'] as const).map((ctx) => (
                           <button
@@ -649,6 +715,100 @@ export default function GestureTalkApp() {
                   )}
 
                   {/* ── Guide tab ── */}
+                  {/* ── AI Pipeline tab ── */}
+                  {tab.id === 'pipeline' && (
+                    <div className="flex flex-col gap-4">
+                      <ModelPipeline
+                        stages={pipeline.stages}
+                        lastGesture={pipeline.visionGesture ?? undefined}
+                        visionDescription={pipeline.visionDescription ?? undefined}
+                        emotionTag={pipeline.emotionTag}
+                        streamingText={pipeline.streamingCompletions}
+                        translation={pipeline.translation}
+                        translationLang={pipeline.translationLang}
+                      />
+
+                      {/* Translation language selector */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500 font-bold uppercase">🌐 Output Language</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { code: 'en', label: 'English', flag: '🇬🇧' },
+                            { code: 'hi', label: 'Hindi', flag: '🇮🇳' },
+                            { code: 'ta', label: 'Tamil', flag: '🇮🇳' },
+                            { code: 'te', label: 'Telugu', flag: '🇮🇳' },
+                            { code: 'bn', label: 'Bengali', flag: '🇮🇳' },
+                            { code: 'mr', label: 'Marathi', flag: '🇮🇳' },
+                          ].map(lang => (
+                            <button
+                              key={lang.code}
+                              onClick={() => {
+                                setTargetLang(lang.code);
+                                localStorage.setItem('gesturetalk-lang', lang.code);
+                              }}
+                              aria-pressed={targetLang === lang.code}
+                              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors min-h-[44px] ${
+                                targetLang === lang.code
+                                  ? 'bg-cyan-700 text-white border border-cyan-500'
+                                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
+                              }`}
+                            >
+                              <span>{lang.flag}</span>
+                              <span>{lang.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Live translation output */}
+                      {pipeline.translation && (
+                        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4 space-y-2">
+                          <p className="text-xs text-blue-400 font-bold uppercase">Gemma Translation</p>
+                          <p className="text-white text-lg font-medium">{pipeline.translation}</p>
+                          <button
+                            onClick={() => {
+                              if ('speechSynthesis' in window) {
+                                speechSynthesis.cancel();
+                                const utt = new SpeechSynthesisUtterance(pipeline.translation!);
+                                speechSynthesis.speak(utt);
+                              }
+                            }}
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            🔊 Speak translation
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Emotion / empathy */}
+                      {pipeline.emotionTag && pipeline.emotionTag !== 'neutral' && (
+                        <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-4 space-y-2">
+                          <p className="text-xs text-amber-400 font-bold uppercase">😟 Emotion Detected: {pipeline.emotionTag}</p>
+                          {pipeline.emotionEmpathy && (
+                            <div>
+                              <p className="text-xs text-gray-400 mb-1">Suggested nurse response:</p>
+                              <p className="text-white font-medium text-sm">&quot;{pipeline.emotionEmpathy}&quot;</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Last pipeline timing */}
+                      {pipeline.lastTotalMs !== null && (
+                        <p className="text-xs text-gray-600 text-center">
+                          Last full pipeline: {pipeline.lastTotalMs}ms total
+                        </p>
+                      )}
+
+                      <button
+                        onClick={resetPipeline}
+                        className="text-xs text-gray-500 hover:text-gray-300 self-center py-2"
+                      >
+                        Reset pipeline
+                      </button>
+                    </div>
+                  )}
+
                   {tab.id === 'guide' && <GestureGuide />}
 
                   {/* ── Log tab ── */}
