@@ -18,6 +18,16 @@ import { useStats } from './hooks/useStats';
 import { useCustomPhrases } from './hooks/useCustomPhrases';
 import { useConversationLog } from './hooks/useConversationLog';
 import { useAnalytics } from './hooks/useAnalytics';
+import { useHaptics } from './hooks/useHaptics';
+import { useHighContrast } from './hooks/useHighContrast';
+import { useOneHanded } from './hooks/useOneHanded';
+import { useProfiles } from './hooks/useProfiles';
+import PainScale from './components/PainScale';
+import ConversationExport from './components/ConversationExport';
+import ProfileSelector from './components/ProfileSelector';
+import SLPMode from './components/SLPMode';
+import GestureTrainer from './components/GestureTrainer';
+import OnDeviceBadge from './components/OnDeviceBadge';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 
@@ -38,6 +48,19 @@ export default function GestureTalkApp() {
   const { phrases: customPhrases, addPhrase, removePhrase, clearPhrases, storageWarning: phraseStorageWarning, dismissStorageWarning: dismissPhraseWarning } = useCustomPhrases();
   const { messages, addMessage, clearMessages, storageWarning: logStorageWarning, dismissStorageWarning: dismissLogWarning } = useConversationLog();
   const { track } = useAnalytics();
+  const { haptic } = useHaptics();
+  const { highContrast, toggleHighContrast } = useHighContrast();
+  const { oneHandedMode, setOneHandedMode } = useOneHanded();
+  const { profiles, activeProfile, activeId: activeProfileId, switchProfile, addProfile, removeProfile } = useProfiles();
+  const [confidenceThreshold, setConfidenceThreshold] = useState(() => {
+    if (typeof window === 'undefined') return 75;
+    return Number(localStorage.getItem('gesturetalk-confidence') ?? 75);
+  });
+  // Sync confidence to localStorage
+  useEffect(() => {
+    localStorage.setItem('gesturetalk-confidence', String(confidenceThreshold));
+  }, [confidenceThreshold]);
+  void haptic; void activeProfile;
   const tabsId = useId();
 
   // Sentence builder with undo history
@@ -335,6 +358,11 @@ export default function GestureTalkApp() {
             <GemmaStatusBadge />
           </span>
 
+          {/* On-device guarantee badge */}
+          <span className="hidden lg:block">
+            <OnDeviceBadge />
+          </span>
+
           {/* Caregiver link */}
           <a
             href="/caregiver"
@@ -571,6 +599,12 @@ export default function GestureTalkApp() {
                     <div className="flex flex-col gap-4">
                       <div className="text-xs uppercase text-gray-500 font-bold">🚨 Emergency Alert</div>
                       <EmergencyAlert onDismiss={() => track('emergency_triggered', { dismissed: true })} />
+
+                      {/* Pain scale */}
+                      <div className="border-t border-gray-800 pt-4">
+                        <PainScale onReport={(text) => speakAndLogFn(text, 'phrase')} />
+                      </div>
+
                       <div className="border-t border-gray-800 pt-4">
                         <div className="text-xs uppercase text-gray-500 font-bold mb-3">🆘 Emergency Phrases</div>
                         <div className="grid grid-cols-1 gap-2">
@@ -757,6 +791,106 @@ export default function GestureTalkApp() {
                       </div>
 
                       <StatsPanel stats={stats} />
+
+                      {/* Confidence threshold */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">🎯 Gesture Confidence Threshold</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3">
+                          <div className="flex justify-between items-center">
+                            <label htmlFor={`${tabsId}-confidence`} className="text-xs text-gray-400 font-medium">
+                              Minimum confidence
+                            </label>
+                            <span className="text-xs text-cyan-400 font-mono">{confidenceThreshold}%</span>
+                          </div>
+                          <input
+                            id={`${tabsId}-confidence`}
+                            type="range" min={50} max={99} step={1}
+                            value={confidenceThreshold}
+                            onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+                            className="w-full accent-cyan-400"
+                            aria-label={`Confidence threshold: ${confidenceThreshold}%`}
+                          />
+                          <div className="flex justify-between text-[10px] text-gray-600">
+                            <span>50% (permissive)</span><span>75% (default)</span><span>99% (strict)</span>
+                          </div>
+                          <p className="text-[11px] text-gray-600">Higher = fewer false positives but needs clearer gestures.</p>
+                        </div>
+                      </div>
+
+                      {/* High contrast mode */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">🎨 Accessibility</h3>
+                        <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">High contrast mode (WCAG 2.1 AA)</span>
+                            <button
+                              role="switch"
+                              aria-checked={highContrast}
+                              onClick={toggleHighContrast}
+                              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 ${highContrast ? 'bg-yellow-500' : 'bg-gray-700'}`}
+                              aria-label="Toggle high contrast mode"
+                            >
+                              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${highContrast ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">One-handed mode</span>
+                            <div className="flex gap-1">
+                              {(['off', 'left', 'right'] as const).map(side => (
+                                <button
+                                  key={side}
+                                  onClick={() => setOneHandedMode(side)}
+                                  aria-pressed={oneHandedMode === side}
+                                  className={`px-2 py-1 text-xs rounded-lg transition-colors ${oneHandedMode === side ? 'bg-cyan-700 text-white' : 'bg-gray-700 text-gray-400'}`}
+                                >
+                                  {side === 'off' ? 'Off' : side === 'left' ? '◀ L' : 'R ▶'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Profiles */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">👤 Patient Profiles</h3>
+                        <ProfileSelector
+                          profiles={profiles}
+                          activeId={activeProfileId}
+                          onSwitch={switchProfile}
+                          onAdd={addProfile}
+                          onRemove={removeProfile}
+                        />
+                      </div>
+
+                      {/* SLP Mode */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">👩‍⚕️ SLP Configuration</h3>
+                        <SLPMode />
+                      </div>
+
+                      {/* Gesture trainer */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">🎯 Personalised Gesture Training</h3>
+                        <GestureTrainer />
+                      </div>
+
+                      {/* Export conversation */}
+                      <div>
+                        <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">📤 Export Conversation</h3>
+                        <ConversationExport messages={messages} />
+                      </div>
+
+                      {/* Links */}
+                      <div className="flex flex-wrap gap-2">
+                        <a href="/caregiver" className="text-xs text-cyan-400 underline">Caregiver Dashboard</a>
+                        <span className="text-gray-700">·</span>
+                        <a href="/analytics" className="text-xs text-cyan-400 underline">Analytics</a>
+                        <span className="text-gray-700">·</span>
+                        <a href="/privacy" className="text-xs text-cyan-400 underline">Privacy Policy</a>
+                        <span className="text-gray-700">·</span>
+                        <a href="/waitlist" className="text-xs text-cyan-400 underline">Waitlist</a>
+                      </div>
 
                       {/* Data & Storage */}
                       <div>
