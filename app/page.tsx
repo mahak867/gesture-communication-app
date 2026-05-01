@@ -7,8 +7,7 @@ import ConversationLog from './components/ConversationLog';
 import GestureGuide from './components/GestureGuide';
 import VoiceSettings from './components/VoiceSettings';
 import StatsPanel from './components/StatsPanel';
-import OnboardingOverlay, { shouldShowOnboarding } from './components/OnboardingOverlay';
-import WordPrediction from './components/WordPrediction';
+import { shouldShowOnboarding } from './components/OnboardingOverlay';
 import EmergencyAlert from './components/EmergencyAlert';
 import PhrasePacks from './components/PhrasePacks';
 import GemmaStatusBadge from './components/GemmaStatusBadge';
@@ -209,7 +208,7 @@ export default function GestureTalkApp() {
         }, 3000);
       }
     },
-    [incrementGesture, track, runPipeline, sentence, gemmaContext, targetLang],
+    [incrementGesture, track, runPipeline, sentence, gemmaContext, targetLang, haptic],
   );
 
   const handleGestureChange = useCallback(

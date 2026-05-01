@@ -20,6 +20,27 @@ export default function ConversationExport({ messages }: Props) {
     return header + body;
   };
 
+  const downloadCsv = () => {
+    const header = "Time,Message,Urgent\n";
+    const rows = messages
+      .map((m) => {
+        const time = new Date(m.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+        const urgent = ["help", "emergency", "pain", "can't breathe", "doctor"].some((k) =>
+          m.text.toLowerCase().includes(k)
+        );
+        const escapedText = `"${m.text.replace(/"/g, '""')}"`;
+        return `${time},${escapedText},${urgent ? "YES" : "NO"}`;
+      })
+      .join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gesturetalk-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const downloadTxt = () => {
     const content = buildText();
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -101,6 +122,18 @@ tr:nth-child(even){background:#f9fafb}td{border-bottom:1px solid #e5e7eb}
     <div className="space-y-2">
       <p className="text-xs text-gray-500">{messages.length} messages ready to export</p>
       <div className="flex flex-col gap-2">
+        <button
+          onClick={downloadCsv}
+          className="flex items-center gap-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm px-4 min-h-[44px] rounded-xl transition-colors touch-manipulation"
+          aria-label="Download as CSV spreadsheet"
+        >
+          <span className="text-xl">📊</span>
+          <div className="text-left">
+            <div className="font-medium">Download .csv</div>
+            <div className="text-xs text-gray-400">Spreadsheet with timestamps and urgent flags</div>
+          </div>
+        </button>
+
         <button
           onClick={downloadTxt}
           className="flex items-center gap-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm px-4 min-h-[44px] rounded-xl transition-colors touch-manipulation"

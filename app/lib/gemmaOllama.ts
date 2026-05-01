@@ -186,7 +186,7 @@ Return ONLY the translated text. No explanations.`;
 // ─── Local landmark classifier (fast, no AI needed) ──────────────────────────
 function classifyLocally(
   landmarks: number[][],
-  _handedness: string
+  handedness: string
 ): { letter: string; confidence: number; alternatives: string[] } {
   if (!landmarks || landmarks.length < 21) {
     return { letter: "?", confidence: 0, alternatives: [] };
@@ -196,7 +196,9 @@ function classifyLocally(
   // Finger tip indices: thumb=4, index=8, middle=12, ring=16, pinky=20
   // Finger pip indices: thumb=3, index=6, middle=10, ring=14, pinky=18
 
-  const thumbUp = lm[4][1] < lm[3][1];
+  // For left hand, thumb tip extends to the right (larger x); right hand extends left
+  const isLeft = handedness.toLowerCase() === "left";
+  const thumbUp = isLeft ? lm[4][0] > lm[2][0] : lm[4][0] < lm[2][0];
   const indexUp = lm[8][1] < lm[6][1];
   const middleUp = lm[12][1] < lm[10][1];
   const ringUp = lm[16][1] < lm[14][1];
