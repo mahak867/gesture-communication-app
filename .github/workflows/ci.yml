@@ -30,7 +30,7 @@ jobs:
         run: npx next lint || true
 
       - name: Run unit tests
-        run: npm test -- --passWithNoTests --watchAll=false
+        run: npm test -- --run --passWithNoTests
 
       - name: Build
         run: npm run build
