@@ -8,21 +8,28 @@ import GestureGuide from './components/GestureGuide';
 import VoiceSettings from './components/VoiceSettings';
 import StatsPanel from './components/StatsPanel';
 import OnboardingOverlay, { shouldShowOnboarding } from './components/OnboardingOverlay';
+import WordPrediction from './components/WordPrediction';
+import EmergencyAlert from './components/EmergencyAlert';
+import PhrasePacks from './components/PhrasePacks';
+import GemmaStatusBadge from './components/GemmaStatusBadge';
+import OnboardingFlow from './components/OnboardingFlow';
 import { useSpeech } from './hooks/useSpeech';
 import { useStats } from './hooks/useStats';
 import { useCustomPhrases } from './hooks/useCustomPhrases';
 import { useConversationLog } from './hooks/useConversationLog';
+import { useAnalytics } from './hooks/useAnalytics';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 
-type Tab = 'builder' | 'phrases' | 'guide' | 'log' | 'settings';
+type Tab = 'builder' | 'phrases' | 'emergency' | 'guide' | 'log' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'builder',  label: 'Build',    icon: '✏️' },
-  { id: 'phrases',  label: 'Phrases',  icon: '💬' },
-  { id: 'guide',    label: 'Guide',    icon: '📖' },
-  { id: 'log',      label: 'Log',      icon: '📋' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'builder',   label: 'Build',     icon: '✏️' },
+  { id: 'phrases',   label: 'Phrases',   icon: '💬' },
+  { id: 'emergency', label: 'Emergency', icon: '🚨' },
+  { id: 'guide',     label: 'Guide',     icon: '📖' },
+  { id: 'log',       label: 'Log',       icon: '📋' },
+  { id: 'settings',  label: 'Settings',  icon: '⚙️' },
 ];
 
 export default function GestureTalkApp() {
@@ -30,6 +37,7 @@ export default function GestureTalkApp() {
   const { stats, incrementGesture, incrementMessage } = useStats();
   const { phrases: customPhrases, addPhrase, removePhrase, clearPhrases, storageWarning: phraseStorageWarning, dismissStorageWarning: dismissPhraseWarning } = useCustomPhrases();
   const { messages, addMessage, clearMessages, storageWarning: logStorageWarning, dismissStorageWarning: dismissLogWarning } = useConversationLog();
+  const { track } = useAnalytics();
   const tabsId = useId();
 
   // Sentence builder with undo history
@@ -40,8 +48,14 @@ export default function GestureTalkApp() {
   const sentence = sentenceState.current;
   const canUndo = sentenceState.history.length > 0;
 
-  // Onboarding: shown once on first visit
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => shouldShowOnboarding());
+  // Onboarding: shown once on first visit — use new 7-step flow
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('gesturetalk_onboarded') && shouldShowOnboarding();
+  });
+
+  // Gemma context for word prediction
+  const [gemmaContext, setGemmaContext] = useState<'medical' | 'daily' | 'emergency' | 'general'>('medical');
 
   // Manual type-to-speak input
   const [typedInput, setTypedInput] = useState('');
@@ -90,7 +104,7 @@ export default function GestureTalkApp() {
 
   // Refs for tab buttons (keyboard arrow-key navigation)
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
-    builder: null, phrases: null, guide: null, log: null, settings: null,
+    builder: null, phrases: null, emergency: null, guide: null, log: null, settings: null,
   });
 
   /* ── Helpers ── */
@@ -102,8 +116,9 @@ export default function GestureTalkApp() {
       speak(trimmed);
       addMessage(trimmed, source);
       incrementMessage(trimmed);
+      track('message_spoken', { source, words: trimmed.split(' ').length });
     },
-    [speak, addMessage, incrementMessage],
+    [speak, addMessage, incrementMessage, track],
   );
   const speakAndLogRef = useRef(speakAndLogFn);
   useEffect(() => { speakAndLogRef.current = speakAndLogFn; }, [speakAndLogFn]);
@@ -112,6 +127,7 @@ export default function GestureTalkApp() {
   const handleConfirm = useCallback(
     (gesture: GestureResult) => {
       incrementGesture();
+      track('gesture_detected', { id: gesture.id, label: gesture.label, category: gesture.category });
 
       if (gesture.category === 'command') {
         if (gesture.id === 'five') {
@@ -314,6 +330,21 @@ export default function GestureTalkApp() {
         >
           <span className="sr-only">{statusText}</span>
 
+          {/* Gemma status badge — shown on medium+ screens */}
+          <span className="hidden md:block">
+            <GemmaStatusBadge />
+          </span>
+
+          {/* Caregiver link */}
+          <a
+            href="/caregiver"
+            className="hidden sm:flex items-center gap-1 text-[10px] bg-blue-900/40 border border-blue-800/50 text-blue-300 px-2 py-0.5 rounded-full hover:bg-blue-800/60 transition-colors"
+            aria-label="Open caregiver dashboard"
+            title="Caregiver Dashboard"
+          >
+            👩‍⚕️ Caregiver
+          </a>
+
           {/* Glowing dot */}
           <span
             aria-hidden="true"
@@ -448,6 +479,44 @@ export default function GestureTalkApp() {
                         fontSize={fontSize}
                       />
 
+                      {/* Gemma 4 Word Prediction */}
+                      {sentence.trim().length >= 2 && (
+                        <div>
+                          <div className="text-xs uppercase text-gray-500 font-bold mb-2">
+                            🤖 Gemma 4 Suggestions
+                          </div>
+                          <WordPrediction
+                            partialText={sentence}
+                            context={gemmaContext}
+                            language="en"
+                            onSelect={(completion) => {
+                              speakAndLogFn(completion, 'typed');
+                              dispatchSentence({ type: 'clear' });
+                              track('gemma_completion_used', { completion });
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Context selector for Gemma */}
+                      <div className="flex gap-2 flex-wrap">
+                        {(['medical', 'daily', 'emergency', 'general'] as const).map((ctx) => (
+                          <button
+                            key={ctx}
+                            onClick={() => setGemmaContext(ctx)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
+                              gemmaContext === ctx
+                                ? 'bg-cyan-700 text-white'
+                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                            }`}
+                            aria-pressed={gemmaContext === ctx}
+                            aria-label={`Set context to ${ctx}`}
+                          >
+                            {ctx === 'medical' ? '🏥' : ctx === 'daily' ? '🌅' : ctx === 'emergency' ? '🚨' : '💬'} {ctx}
+                          </button>
+                        ))}
+                      </div>
+
                       {/* Type to speak */}
                       <div className="flex flex-col gap-2">
                         <label
@@ -497,15 +566,52 @@ export default function GestureTalkApp() {
                     </div>
                   )}
 
+                  {/* ── Emergency tab ── */}
+                  {tab.id === 'emergency' && (
+                    <div className="flex flex-col gap-4">
+                      <div className="text-xs uppercase text-gray-500 font-bold">🚨 Emergency Alert</div>
+                      <EmergencyAlert onDismiss={() => track('emergency_triggered', { dismissed: true })} />
+                      <div className="border-t border-gray-800 pt-4">
+                        <div className="text-xs uppercase text-gray-500 font-bold mb-3">🆘 Emergency Phrases</div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {[
+                            { text: 'HELP ME NOW — EMERGENCY', emoji: '🆘' },
+                            { text: 'I cannot breathe', emoji: '😮‍💨' },
+                            { text: 'I am in severe pain', emoji: '😰' },
+                            { text: 'Call my family now', emoji: '👨‍👩‍👧' },
+                            { text: 'I need a doctor urgently', emoji: '👨‍⚕️' },
+                            { text: 'Please call 112', emoji: '📞' },
+                          ].map((p) => (
+                            <button
+                              key={p.text}
+                              onClick={() => speakAndLogFn(p.text, 'phrase')}
+                              className="flex items-center gap-3 w-full bg-red-950 hover:bg-red-900 border border-red-800 text-white text-sm font-semibold px-4 min-h-[52px] rounded-xl transition-colors touch-manipulation"
+                              aria-label={p.text}
+                            >
+                              <span className="text-xl">{p.emoji}</span>
+                              <span>{p.text}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ── Phrases tab ── */}
                   {tab.id === 'phrases' && (
-                    <QuickPhrases
-                      onSpeak={handlePhrase}
-                      customPhrases={customPhrases}
-                      onAddPhrase={addPhrase}
-                      onRemovePhrase={removePhrase}
-                      currentSentence={sentence}
-                    />
+                    <div className="flex flex-col gap-4">
+                      <PhrasePacks onSelect={(text) => speakAndLogFn(text, 'phrase')} />
+                      <div className="border-t border-gray-800 pt-4">
+                        <div className="text-xs uppercase text-gray-500 font-bold mb-2">⭐ Custom Phrases</div>
+                        <QuickPhrases
+                          onSpeak={handlePhrase}
+                          customPhrases={customPhrases}
+                          onAddPhrase={addPhrase}
+                          onRemovePhrase={removePhrase}
+                          currentSentence={sentence}
+                        />
+                      </div>
+                    </div>
                   )}
 
                   {/* ── Guide tab ── */}
@@ -721,9 +827,9 @@ export default function GestureTalkApp() {
         </div>
       </div>
 
-      {/* First-run onboarding */}
+      {/* First-run onboarding — new 7-step flow */}
       {showOnboarding && (
-        <OnboardingOverlay onDismiss={() => setShowOnboarding(false)} />
+        <OnboardingFlow onComplete={() => { setShowOnboarding(false); track('session_start', {}); }} />
       )}
 
       {/* Storage quota warning toast */}
