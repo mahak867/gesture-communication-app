@@ -2,7 +2,7 @@
 // Medical ID — emergency card for mute patients
 // One tap shows: name, conditions, allergies, medications, emergency contacts, communication note
 // Critical: first thing a paramedic or ER nurse should see
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface MedicalID {
   name:          string;
@@ -23,14 +23,13 @@ const EMPTY: MedicalID = { name:'',dob:'',conditions:'',allergies:'',medications
 const KEY = 'gesturetalk-medical-id';
 
 export default function MedicalIDPage() {
-  const [id,      setId]      = useState<MedicalID>(EMPTY);
+  function loadFromStorage(): MedicalID {
+    try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) as MedicalID : EMPTY; } catch { return EMPTY; }
+  }
+  const [id,      setId]      = useState<MedicalID>(loadFromStorage);
   const [editing, setEditing] = useState(false);
   const [saved,   setSaved]   = useState(false);
-  const [draft,   setDraft]   = useState<MedicalID>(EMPTY);
-
-  useEffect(() => {
-    try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r) as MedicalID; setId(d); setDraft(d); } } catch { /* ignore */ }
-  }, []);
+  const [draft,   setDraft]   = useState<MedicalID>(loadFromStorage);
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(draft)); setId(draft); setSaved(true); setEditing(false); setTimeout(() => setSaved(false), 2000); } catch { /* ignore */ }

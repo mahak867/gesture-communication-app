@@ -37,9 +37,9 @@ const OLLAMA = typeof window !== "undefined"
   ? (process.env.NEXT_PUBLIC_OLLAMA_URL ?? "http://localhost:11434")
   : "http://localhost:11434";
 
-const VISION_MODEL = "gemma4";          // Gemma 4 — multimodal vision+text
-const TEXT_MODEL   = "gemma4";          // Gemma 4 text mode
-const FAST_MODEL   = "gemma4";          // Gemma 4 (single model for all stages)
+const VISION_MODEL = process.env.OLLAMA_MODEL ?? "gemma4";          // Gemma 4 — multimodal vision+text
+const TEXT_MODEL   = process.env.OLLAMA_MODEL ?? "gemma4";          // Gemma 4 text mode
+const FAST_MODEL   = process.env.OLLAMA_MODEL ?? "gemma4";          // Gemma 4 (single model for all stages)
 
 // ─── Ollama multimodal generate ──────────────────────────────────────────────
 async function ollamaGenerate(opts: {

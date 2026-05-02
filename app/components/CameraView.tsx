@@ -157,11 +157,12 @@ export interface CameraViewProps {
   onFrame?: (frameBase64: string) => void;
   tremorSmooth?: (lms: number[][]) => number[][];
   dwellMs?: number;
+  minConfidence?: number;  // 0–100, gates gesture confirmation (default: 60)
 }
 
 type LoadState = 'loading-model' | 'loading-camera' | 'ready' | 'error';
 
-export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, onFrame, tremorSmooth, dwellMs = 1500 }: CameraViewProps) {
+export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, onFrame, tremorSmooth, dwellMs = 1500, minConfidence = 60 }: CameraViewProps) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -182,6 +183,9 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
   useEffect(() => { onGestureChangeRef.current    = onGestureChange;    }, [onGestureChange]);
   useEffect(() => { onLandmarksUpdateRef.current  = onLandmarksUpdate;  }, [onLandmarksUpdate]);
   useEffect(() => { dwellMsRef.current            = dwellMs;            }, [dwellMs]);
+
+  const minConfidenceRef = useRef(minConfidence);
+  useEffect(() => { minConfidenceRef.current = minConfidence; }, [minConfidence]);
 
   const handsStateRef  = useRef<HandState[]>(Array.from({ length: MAX_HANDS }, makeHandState));
   const lastNotifyRef  = useRef(0);
@@ -247,7 +251,9 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
         }
 
         const confirmed = progress >= 0.99;
-        if (confirmed && now - hs.lastConfirm > COOLDOWN_MS) {
+        // Gate: only confirm if gesture confidence meets the threshold set by user
+        const meetsConfidence = confidence === 0 || (confidence * 100) >= minConfidenceRef.current;
+        if (confirmed && meetsConfidence && now - hs.lastConfirm > COOLDOWN_MS) {
           hs.lastConfirm = now;
           hs.currentId   = null;
           playConfirmTone();
