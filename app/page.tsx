@@ -27,6 +27,9 @@ import ProfileSelector from './components/ProfileSelector';
 import SLPMode from './components/SLPMode';
 import GestureTrainer from './components/GestureTrainer';
 import OnDeviceBadge from './components/OnDeviceBadge';
+import SOAPNote from './components/SOAPNote';
+import EmotionDetector from './components/EmotionDetector';
+import FunctionCallingDemo from './components/FunctionCallingDemo';
 import ModelPipeline from './components/ModelPipeline';
 import { usePipeline } from './hooks/usePipeline';
 import { isDemoMode } from './lib/demoMode';
@@ -477,6 +480,16 @@ export default function GestureTalkApp() {
             onFrame={(b64) => { lastFrameRef.current = b64; }}
             dwellMs={dwellMs}
           />
+          {/* Gemma 4 face emotion — compact badge below camera */}
+          <div className="px-2 pb-2">
+            <EmotionDetector
+              frameRef={lastFrameRef}
+              compact
+              onEmotionChange={(emotion, painLevel) => {
+                if (painLevel >= 7) track('high_pain_detected', { painLevel, emotion });
+              }}
+            />
+          </div>
         </div>
 
         {/* Control panel */}
@@ -870,6 +883,27 @@ export default function GestureTalkApp() {
                         )}
                       </div>
 
+                      {/* Gemma 4 Function Calling */}
+                      <div className="border-t border-gray-800 pt-4">
+                        <FunctionCallingDemo />
+                      </div>
+
+                      {/* Gemma 4 Face Emotion (full version) */}
+                      <div className="border-t border-gray-800 pt-4">
+                        <h3 className="text-xs font-bold uppercase text-gray-500 mb-3">😟 Gemma 4 Emotion Detection</h3>
+                        <EmotionDetector
+                          frameRef={lastFrameRef}
+                          onEmotionChange={(emotion, painLevel) => {
+                            if (painLevel >= 7) track('high_pain_detected', { painLevel, emotion });
+                          }}
+                        />
+                      </div>
+
+                      {/* SOAP Note generator */}
+                      <div className="border-t border-gray-800 pt-4">
+                        <SOAPNote messages={messages} patientName={activeProfile?.name} />
+                      </div>
+
                       <button
                         onClick={resetPipeline}
                         className="text-xs text-gray-500 hover:text-gray-300 self-center py-2"
@@ -1109,6 +1143,9 @@ export default function GestureTalkApp() {
                       <div>
                         <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">📤 Export Conversation</h3>
                         <ConversationExport messages={messages} />
+                        <div className="mt-4">
+                          <SOAPNote messages={messages} patientName={activeProfile?.name} />
+                        </div>
                       </div>
 
                       {/* Links */}
