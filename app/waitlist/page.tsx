@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 
 const STORAGE_KEY = "gesturetalk-waitlist";
 
@@ -24,7 +25,7 @@ export default function WaitlistPage() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center px-4 py-12">
-      <a href="/" className="text-cyan-400 hover:text-cyan-300 text-sm self-start mb-8">← Back to app</a>
+      <Link href="/" className="text-cyan-400 hover:text-cyan-300 text-sm self-start mb-8">← Back to app</Link>
 
       {/* Hero */}
       <div className="text-center space-y-4 max-w-xl mb-12">
@@ -55,9 +56,9 @@ export default function WaitlistPage() {
             <p className="text-gray-400 text-sm">
               We&apos;ll reach out at <span className="text-cyan-400">{email}</span> when GestureTalk Pro launches.
             </p>
-            <a href="/" className="block w-full text-center bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl transition-colors">
+            <Link href="/" className="block w-full text-center bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl transition-colors">
               Try the app now →
-            </a>
+            </Link>
           </div>
         ) : (
           <>

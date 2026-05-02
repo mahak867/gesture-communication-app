@@ -3,6 +3,13 @@ import { useState, useEffect, useCallback } from "react";
 
 interface Message { text: string; timestamp: string; flagged?: boolean; }
 
+const URGENT_KEYWORDS = ["emergency", "help", "pain", "hurt", "can't breathe", "severe", "911", "urgent", "call"];
+const PAIN_KEYWORDS = ["pain", "hurt", "ache", "sore", "burning", "stabbing", "level"];
+const NEEDS_KEYWORDS = ["water", "food", "bathroom", "cold", "hot", "hungry", "thirsty", "sleep"];
+
+const flagMessage = (text: string) =>
+  URGENT_KEYWORDS.some((k) => text.toLowerCase().includes(k));
+
 export default function CaregiverDashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [summary, setSummary] = useState("");
@@ -10,13 +17,6 @@ export default function CaregiverDashboard() {
   const [filter, setFilter] = useState<"all" | "urgent" | "pain" | "needs">("all");
   const [search, setSearch] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
-
-  const URGENT_KEYWORDS = ["emergency", "help", "pain", "hurt", "can't breathe", "severe", "911", "urgent", "call"];
-  const PAIN_KEYWORDS = ["pain", "hurt", "ache", "sore", "burning", "stabbing", "level"];
-  const NEEDS_KEYWORDS = ["water", "food", "bathroom", "cold", "hot", "hungry", "thirsty", "sleep"];
-
-  const flagMessage = (text: string) =>
-    URGENT_KEYWORDS.some((k) => text.toLowerCase().includes(k));
 
   const loadMessages = useCallback(() => {
     try {

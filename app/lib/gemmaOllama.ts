@@ -186,7 +186,7 @@ Return ONLY the translated text. No explanations.`;
 // ─── Local landmark classifier (fast, no AI needed) ──────────────────────────
 function classifyLocally(
   landmarks: number[][],
-  _handedness: string
+  handedness: string
 ): { letter: string; confidence: number; alternatives: string[] } {
   if (!landmarks || landmarks.length < 21) {
     return { letter: "?", confidence: 0, alternatives: [] };
@@ -196,7 +196,9 @@ function classifyLocally(
   // Finger tip indices: thumb=4, index=8, middle=12, ring=16, pinky=20
   // Finger pip indices: thumb=3, index=6, middle=10, ring=14, pinky=18
 
-  const thumbUp = lm[4][1] < lm[3][1];
+  // For left hand, thumb tip extends to the right (larger x); right hand extends left
+  const isLeft = handedness.toLowerCase() === "left";
+  const thumbExtended = isLeft ? lm[4][0] > lm[3][0] : lm[4][0] < lm[3][0];
   const indexUp = lm[8][1] < lm[6][1];
   const middleUp = lm[12][1] < lm[10][1];
   const ringUp = lm[16][1] < lm[14][1];
@@ -205,15 +207,15 @@ function classifyLocally(
   const allCurled = !indexUp && !middleUp && !ringUp && !pinkyUp;
   const allUp = indexUp && middleUp && ringUp && pinkyUp;
 
-  if (allCurled && !thumbUp) return { letter: "A", confidence: 0.9, alternatives: ["E", "S"] };
-  if (allCurled && thumbUp) return { letter: "A", confidence: 0.85, alternatives: ["A", "T"] };
-  if (allUp && thumbUp) return { letter: "B", confidence: 0.88, alternatives: ["4", "F"] };
+  if (allCurled && !thumbExtended) return { letter: "A", confidence: 0.9, alternatives: ["E", "S"] };
+  if (allCurled && thumbExtended) return { letter: "A", confidence: 0.85, alternatives: ["A", "T"] };
+  if (allUp && thumbExtended) return { letter: "B", confidence: 0.88, alternatives: ["4", "F"] };
   if (indexUp && !middleUp && !ringUp && !pinkyUp) return { letter: "D", confidence: 0.85, alternatives: ["1", "G"] };
   if (indexUp && middleUp && !ringUp && !pinkyUp) return { letter: "U", confidence: 0.82, alternatives: ["V", "H"] };
   if (pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "I", confidence: 0.88, alternatives: ["J"] };
-  if (thumbUp && pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "Y", confidence: 0.9, alternatives: ["6"] };
+  if (thumbExtended && pinkyUp && !indexUp && !middleUp && !ringUp) return { letter: "Y", confidence: 0.9, alternatives: ["6"] };
   if (indexUp && pinkyUp && !middleUp && !ringUp) return { letter: "L", confidence: 0.85, alternatives: [] };
-  if (allUp && !thumbUp) return { letter: "4", confidence: 0.8, alternatives: ["B"] };
+  if (allUp && !thumbExtended) return { letter: "4", confidence: 0.8, alternatives: ["B"] };
 
   return { letter: "?", confidence: 0.3, alternatives: ["A", "B", "C"] };
 }
