@@ -12,9 +12,12 @@ function saveSamples(s: Record<string, Sample[]>) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
-interface Props { onGestureReady?: (label: string) => void; }
+interface Props {
+  onGestureReady?: (label: string) => void;
+  captureFrame?: () => number[][] | null;
+}
 
-export default function GestureTrainer({ onGestureReady }: Props) {
+export default function GestureTrainer({ onGestureReady, captureFrame: captureFrameProp }: Props) {
   const [step, setStep] = useState<"name" | "record" | "done">("name");
   const [name, setName] = useState("");
   const [phrase, setPhrase] = useState("");
@@ -28,11 +31,15 @@ export default function GestureTrainer({ onGestureReady }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const TARGET_SAMPLES = 5;
 
-  // Simulate landmark capture (real app: wire into CameraView)
+  // Capture current landmarks from CameraView if available, otherwise simulate
   const captureFrame = useCallback((): number[][] => {
-    // In production this reads actual MediaPipe landmarks from shared state
+    if (captureFrameProp) {
+      const real = captureFrameProp();
+      if (real && real.length >= 21) return real;
+    }
+    // Fallback: simulated data (used when camera is off or trainer opened standalone)
     return Array.from({ length: 21 }, () => [Math.random(), Math.random(), Math.random()]);
-  }, []);
+  }, [captureFrameProp]);
 
   const startRecording = () => {
     setCountdown(3);
@@ -88,6 +95,9 @@ export default function GestureTrainer({ onGestureReady }: Props) {
         <h3 className="text-xs uppercase text-gray-500 font-bold mb-1">🎯 Personalised Gesture Training</h3>
         <p className="text-xs text-gray-500">
           Train custom gestures unique to this patient — useful for physical differences or prosthetics.
+        </p>
+        <p className={`text-xs mt-1 ${captureFrameProp ? 'text-green-400' : 'text-amber-500'}`}>
+          {captureFrameProp ? '📡 Live camera landmarks active' : '⚠️ Camera offline — samples will use simulated data'}
         </p>
       </div>
 

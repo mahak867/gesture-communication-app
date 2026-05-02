@@ -92,6 +92,7 @@ export function usePipeline() {
     let finalGesture = opts.landmarkGesture;
     let visionDesc = "";
     let emotion = "neutral";
+    let visionConfidence = 0;
 
     if (opts.frameBase64 && !signal.aborted) {
       setStage("vision", { status: "running" });
@@ -108,7 +109,8 @@ export function usePipeline() {
           signal: AbortSignal.timeout(6000),
         });
         const data = await res.json();
-        if (!data.offline && data.confidence > 0.6) {
+        visionConfidence = data.offline ? 0 : (data.confidence ?? 0);
+        if (!data.offline && visionConfidence > 0.6) {
           finalGesture = data.gesture ?? opts.landmarkGesture;
         }
         visionDesc = data.description ?? "";
@@ -127,12 +129,11 @@ export function usePipeline() {
       setStage("ensemble", { status: "running" });
       const ensembleStart = Date.now();
       // Merge MediaPipe landmark result with Gemma Vision result.
-      // Vision result wins only when its confidence exceeds the landmark
-      // confidence by a meaningful margin; otherwise keep the faster landmark result.
-      const LANDMARK_CONF = 0.70; // MediaPipe landmark classifier baseline
-      const VISION_CONF = 0.75;   // Gemma Vision result confidence when available
-      const OVERRIDE_MARGIN = 0.15; // Vision must beat landmark by this margin to override
-      if (!visionDesc || VISION_CONF < LANDMARK_CONF + OVERRIDE_MARGIN) {
+      // Vision wins when its actual confidence exceeds the landmark baseline by
+      // a meaningful margin; otherwise keep the faster landmark result.
+      const LANDMARK_CONF = 0.70; // MediaPipe baseline confidence
+      const OVERRIDE_MARGIN = 0.10; // Vision must beat landmark baseline by this margin
+      if (!visionDesc || visionConfidence < LANDMARK_CONF + OVERRIDE_MARGIN) {
         // Vision offline or not confident enough — revert to landmark result
         finalGesture = opts.landmarkGesture;
       }

@@ -153,12 +153,13 @@ const MAX_HANDS = 2;
 export interface CameraViewProps {
   onConfirm: (gesture: GestureResult) => void;
   onGestureChange?: (gesture: GestureResult | null, progress: number) => void;
+  onLandmarksUpdate?: (landmarks: number[][]) => void;
   dwellMs?: number;
 }
 
 type LoadState = 'loading-model' | 'loading-camera' | 'ready' | 'error';
 
-export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 }: CameraViewProps) {
+export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, dwellMs = 1500 }: CameraViewProps) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -167,12 +168,14 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   // Stable refs so callbacks don't go stale inside rAF loops
-  const onConfirmRef       = useRef(onConfirm);
-  const onGestureChangeRef = useRef(onGestureChange);
-  const dwellMsRef         = useRef(dwellMs);
-  useEffect(() => { onConfirmRef.current       = onConfirm;       }, [onConfirm]);
-  useEffect(() => { onGestureChangeRef.current = onGestureChange; }, [onGestureChange]);
-  useEffect(() => { dwellMsRef.current         = dwellMs;         }, [dwellMs]);
+  const onConfirmRef          = useRef(onConfirm);
+  const onGestureChangeRef    = useRef(onGestureChange);
+  const onLandmarksUpdateRef  = useRef(onLandmarksUpdate);
+  const dwellMsRef            = useRef(dwellMs);
+  useEffect(() => { onConfirmRef.current          = onConfirm;          }, [onConfirm]);
+  useEffect(() => { onGestureChangeRef.current    = onGestureChange;    }, [onGestureChange]);
+  useEffect(() => { onLandmarksUpdateRef.current  = onLandmarksUpdate;  }, [onLandmarksUpdate]);
+  useEffect(() => { dwellMsRef.current            = dwellMs;            }, [dwellMs]);
 
   const handsStateRef  = useRef<HandState[]>(Array.from({ length: MAX_HANDS }, makeHandState));
   const lastNotifyRef  = useRef(0);
@@ -259,6 +262,12 @@ export default function CameraView({ onConfirm, onGestureChange, dwellMs = 1500 
     // Clear state for hands that left the frame
     for (let hi = handCount; hi < MAX_HANDS; hi++) {
       handsStateRef.current[hi].currentId = null;
+    }
+
+    // Expose primary hand landmarks for gesture training
+    if (result.landmarks[0]) {
+      const primaryLms = result.landmarks[0] as Landmark[];
+      onLandmarksUpdateRef.current?.(primaryLms.map(l => [l.x, l.y, l.z]));
     }
 
     if (now - lastNotifyRef.current > 100) {

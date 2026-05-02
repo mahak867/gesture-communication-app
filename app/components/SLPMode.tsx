@@ -23,6 +23,13 @@ const DEFAULT_CONFIG: SLPConfig = {
 
 const ALL_PACKS = ["Emergency", "Pain", "Daily Needs", "Medical", "Emotions", "ISL / Indian", "BSL / British"];
 
+// Common gestures that can be overridden
+const OVERRIDABLE_GESTURES = [
+  "SPACE", "SPEAK", "BACK", "CLEAR",
+  "A", "B", "D", "I", "K", "L", "U", "Y",
+  "1", "2", "3", "4",
+];
+
 const STORAGE_KEY = "gesturetalk-slp-config";
 
 function loadConfig(): SLPConfig {
@@ -43,6 +50,8 @@ export default function SLPMode({ onConfigChange }: Props) {
   const [saved, setSaved] = useState(false);
   const [pin, setPin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
+  const [newOverrideGesture, setNewOverrideGesture] = useState("");
+  const [newOverridePhrase, setNewOverridePhrase] = useState("");
 
   const SLP_PIN = "1234"; // Simple PIN; in production, use proper auth
 
@@ -63,6 +72,21 @@ export default function SLPMode({ onConfigChange }: Props) {
       ? config.allowedPacks.filter((p) => p !== pack)
       : [...config.allowedPacks, pack];
     update({ allowedPacks: next });
+  };
+
+  const addOverride = () => {
+    const g = newOverrideGesture.trim();
+    const p = newOverridePhrase.trim();
+    if (!g || !p) return;
+    update({ gestureOverrides: { ...config.gestureOverrides, [g]: p } });
+    setNewOverrideGesture("");
+    setNewOverridePhrase("");
+  };
+
+  const removeOverride = (gesture: string) => {
+    const next = { ...config.gestureOverrides };
+    delete next[gesture];
+    update({ gestureOverrides: next });
   };
 
   if (!unlocked) {
@@ -146,6 +170,61 @@ export default function SLPMode({ onConfigChange }: Props) {
               {pack}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Gesture overrides */}
+      <div className="space-y-2">
+        <label className="text-xs text-gray-400 font-bold uppercase">Gesture Overrides</label>
+        <p className="text-xs text-gray-500">Replace a gesture label with a custom phrase for this patient.</p>
+
+        {/* Existing overrides */}
+        {Object.keys(config.gestureOverrides).length > 0 && (
+          <div className="space-y-1.5">
+            {Object.entries(config.gestureOverrides).map(([gesture, phrase]) => (
+              <div key={gesture} className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2">
+                <span className="text-xs font-mono text-cyan-400 w-12 flex-shrink-0">{gesture}</span>
+                <span className="text-gray-400 text-xs">→</span>
+                <span className="text-sm text-white flex-1 min-w-0 truncate">{phrase}</span>
+                <button
+                  onClick={() => removeOverride(gesture)}
+                  className="text-gray-600 hover:text-red-400 text-sm px-1 min-h-[32px] flex-shrink-0"
+                  aria-label={`Remove override for ${gesture}`}
+                >✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add override form */}
+        <div className="flex gap-2">
+          <select
+            value={newOverrideGesture}
+            onChange={(e) => setNewOverrideGesture(e.target.value)}
+            className="bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-cyan-600 w-24 flex-shrink-0"
+            aria-label="Gesture to override"
+          >
+            <option value="">Gesture…</option>
+            {OVERRIDABLE_GESTURES.map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={newOverridePhrase}
+            onChange={(e) => setNewOverridePhrase(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addOverride()}
+            placeholder="Custom phrase…"
+            maxLength={60}
+            className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-cyan-600"
+            aria-label="Override phrase"
+          />
+          <button
+            onClick={addOverride}
+            disabled={!newOverrideGesture || !newOverridePhrase.trim()}
+            className="bg-cyan-700 hover:bg-cyan-600 disabled:bg-gray-700 text-white text-xs font-bold px-3 min-h-[36px] rounded-lg flex-shrink-0 transition-colors"
+            aria-label="Add gesture override"
+          >Add</button>
         </div>
       </div>
 
