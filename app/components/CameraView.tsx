@@ -154,12 +154,13 @@ export interface CameraViewProps {
   onConfirm: (gesture: GestureResult) => void;
   onGestureChange?: (gesture: GestureResult | null, progress: number) => void;
   onLandmarksUpdate?: (landmarks: number[][]) => void;
+  onFrame?: (frameBase64: string) => void;
   dwellMs?: number;
 }
 
 type LoadState = 'loading-model' | 'loading-camera' | 'ready' | 'error';
 
-export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, dwellMs = 1500 }: CameraViewProps) {
+export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, onFrame, dwellMs = 1500 }: CameraViewProps) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -169,10 +170,12 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
 
   // Stable refs so callbacks don't go stale inside rAF loops
   const onConfirmRef          = useRef(onConfirm);
+  const onFrameRef            = useRef(onFrame);
   const onGestureChangeRef    = useRef(onGestureChange);
   const onLandmarksUpdateRef  = useRef(onLandmarksUpdate);
   const dwellMsRef            = useRef(dwellMs);
   useEffect(() => { onConfirmRef.current          = onConfirm;          }, [onConfirm]);
+  useEffect(() => { onFrameRef.current            = onFrame;            }, [onFrame]);
   useEffect(() => { onGestureChangeRef.current    = onGestureChange;    }, [onGestureChange]);
   useEffect(() => { onLandmarksUpdateRef.current  = onLandmarksUpdate;  }, [onLandmarksUpdate]);
   useEffect(() => { dwellMsRef.current            = dwellMs;            }, [dwellMs]);
@@ -246,6 +249,22 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
           hs.currentId   = null;
           playConfirmTone();
           triggerHaptic();
+
+          // Capture 320×240 JPEG for Gemma Vision — fast, low bandwidth
+          if (onFrameRef.current && canvasRef.current) {
+            try {
+              const off = document.createElement('canvas');
+              off.width = 320; off.height = 240;
+              const octx = off.getContext('2d');
+              if (octx) {
+                octx.drawImage(canvasRef.current, 0, 0, 320, 240);
+                const b64 = off.toDataURL('image/jpeg', 0.6)
+                  .replace(/^data:image\/jpeg;base64,/, '');
+                onFrameRef.current(b64);
+              }
+            } catch { /* canvas tainted — skip */ }
+          }
+
           onConfirmRef.current(gesture);
           onGestureChangeRef.current?.(null, 0);
         }

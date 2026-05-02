@@ -5,7 +5,7 @@
  */
 
 const OLLAMA_BASE = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434";
-const MODEL = process.env.NEXT_PUBLIC_GEMMA_MODEL || "gemma2:2b";
+const MODEL = process.env.NEXT_PUBLIC_GEMMA_MODEL || "gemma4";
 
 export interface GemmaStatus {
   available: boolean;
