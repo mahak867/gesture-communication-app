@@ -32,10 +32,10 @@ const STATUS_COLOR: Record<string, string> = {
 
 const PIPELINE_STAGES = [
   { id: "mediapipe", name: "MediaPipe", detail: "21-point hand tracking", icon: "👁️", model: "Local WASM" },
-  { id: "vision",    name: "Gemma Vision", detail: "Frame → gesture meaning", icon: "🤖", model: "gemma3:4b" },
+  { id: "vision",    name: "Gemma Vision", detail: "Frame → gesture meaning", icon: "🤖", model: "gemma4" },
   { id: "ensemble",  name: "Ensemble", detail: "Confidence merge", icon: "⚡", model: "Math" },
-  { id: "text",      name: "Gemma Text", detail: "Sentence completion", icon: "✍️", model: "gemma3:4b" },
-  { id: "translate", name: "Gemma Translate", detail: "Hindi/Tamil/Telugu", icon: "🌐", model: "gemma3:4b" },
+  { id: "text",      name: "Gemma Text", detail: "Sentence completion", icon: "✍️", model: "gemma4" },
+  { id: "translate", name: "Gemma Translate", detail: "Hindi/Tamil/Telugu", icon: "🌐", model: "gemma4" },
   { id: "tts",       name: "Web Speech", detail: "Text → voice output", icon: "🔊", model: "OS TTS" },
 ];
 

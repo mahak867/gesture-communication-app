@@ -155,12 +155,13 @@ export interface CameraViewProps {
   onGestureChange?: (gesture: GestureResult | null, progress: number) => void;
   onLandmarksUpdate?: (landmarks: number[][]) => void;
   onFrame?: (frameBase64: string) => void;
+  tremorSmooth?: (lms: number[][]) => number[][];
   dwellMs?: number;
 }
 
 type LoadState = 'loading-model' | 'loading-camera' | 'ready' | 'error';
 
-export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, onFrame, dwellMs = 1500 }: CameraViewProps) {
+export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpdate, onFrame, tremorSmooth, dwellMs = 1500 }: CameraViewProps) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -171,11 +172,13 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
   // Stable refs so callbacks don't go stale inside rAF loops
   const onConfirmRef          = useRef(onConfirm);
   const onFrameRef            = useRef(onFrame);
+  const tremorSmoothRef       = useRef(tremorSmooth);
   const onGestureChangeRef    = useRef(onGestureChange);
   const onLandmarksUpdateRef  = useRef(onLandmarksUpdate);
   const dwellMsRef            = useRef(dwellMs);
   useEffect(() => { onConfirmRef.current          = onConfirm;          }, [onConfirm]);
   useEffect(() => { onFrameRef.current            = onFrame;            }, [onFrame]);
+  useEffect(() => { tremorSmoothRef.current       = tremorSmooth;       }, [tremorSmooth]);
   useEffect(() => { onGestureChangeRef.current    = onGestureChange;    }, [onGestureChange]);
   useEffect(() => { onLandmarksUpdateRef.current  = onLandmarksUpdate;  }, [onLandmarksUpdate]);
   useEffect(() => { dwellMsRef.current            = dwellMs;            }, [dwellMs]);
@@ -283,10 +286,15 @@ export default function CameraView({ onConfirm, onGestureChange, onLandmarksUpda
       handsStateRef.current[hi].currentId = null;
     }
 
-    // Expose primary hand landmarks for gesture training
+    // Expose primary hand landmarks for gesture training + tremorCompensation
     if (result.landmarks[0]) {
       const primaryLms = result.landmarks[0] as Landmark[];
-      onLandmarksUpdateRef.current?.(primaryLms.map(l => [l.x, l.y, l.z]));
+      const rawLms = primaryLms.map(l => [l.x, l.y, l.z]);
+      // EMA smoothing applied before handing off (reduces shaky-hand mis-fires)
+      const smoothed = tremorSmoothRef.current
+        ? tremorSmoothRef.current(rawLms)
+        : rawLms;
+      onLandmarksUpdateRef.current?.(smoothed);
     }
 
     if (now - lastNotifyRef.current > 100) {

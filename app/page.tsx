@@ -33,6 +33,11 @@ import FunctionCallingDemo from './components/FunctionCallingDemo';
 import ModelPipeline from './components/ModelPipeline';
 import { usePipeline } from './hooks/usePipeline';
 import { isDemoMode } from './lib/demoMode';
+import { useTremorCompensation } from './hooks/useTremorCompensation';
+import YesNoBar from './components/aac/YesNoBar';
+import SymbolGrid from './components/aac/SymbolGrid';
+import CoreVocabulary from './components/aac/CoreVocabulary';
+import FatigueMode from './components/aac/FatigueMode';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 
@@ -75,7 +80,9 @@ export default function GestureTalkApp() {
   useEffect(() => {
     localStorage.setItem('gesturetalk-confidence', String(confidenceThreshold));
   }, [confidenceThreshold]);
-  void haptic; void activeProfile;
+  const { smooth: tremorSmooth } = useTremorCompensation(true);
+  const [fatigueModeActive, setFatigueModeActive] = useState(false);
+  const [aacSubTab, setAacSubTab] = useState<'phrases'|'symbols'|'core'|'custom'>('phrases');
   const tabsId = useId();
 
   // Sentence builder with undo history
@@ -166,7 +173,7 @@ export default function GestureTalkApp() {
     (gesture: GestureResult) => {
       incrementGesture();
       track('gesture_detected', { id: gesture.id, label: gesture.label, category: gesture.category });
-      void haptic;
+      haptic('confirm');
 
       // Run the full multi-modal pipeline
       runPipeline({
@@ -478,6 +485,7 @@ export default function GestureTalkApp() {
             onGestureChange={handleGestureChange}
             onLandmarksUpdate={handleLandmarksUpdate}
             onFrame={(b64) => { lastFrameRef.current = b64; }}
+            tremorSmooth={tremorSmooth}
             dwellMs={dwellMs}
           />
           {/* Gemma 4 face emotion — compact badge below camera */}
@@ -733,10 +741,34 @@ export default function GestureTalkApp() {
 
                   {/* ── Phrases tab ── */}
                   {tab.id === 'phrases' && (
-                    <div className="flex flex-col gap-4">
-                      <PhrasePacks onSelect={(text) => speakAndLogFn(text, 'phrase')} />
-                      <div className="border-t border-gray-800 pt-4">
-                        <div className="text-xs uppercase text-gray-500 font-bold mb-2">⭐ Custom Phrases</div>
+                    <div className="flex flex-col gap-3">
+                      {/* Always-visible YES/NO bar */}
+                      <YesNoBar onSpeak={(t) => speakAndLogFn(t, 'phrase')} />
+
+                      {/* AAC sub-tab selector */}
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                        {([
+                          { id: 'phrases', label: '🗂️ Packs' },
+                          { id: 'symbols', label: '🎨 Symbols' },
+                          { id: 'core',    label: '🔤 Core' },
+                          { id: 'custom',  label: '⭐ Custom' },
+                        ] as const).map(st => (
+                          <button key={st.id} onClick={() => setAacSubTab(st.id)}
+                            aria-pressed={aacSubTab === st.id}
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${aacSubTab === st.id ? 'bg-white text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                            {st.label}
+                          </button>
+                        ))}
+                        <button onClick={() => setFatigueModeActive(true)}
+                          className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/40 border border-red-800/50 text-red-300 hover:bg-red-800/50 transition-colors">
+                          😴 Fatigue
+                        </button>
+                      </div>
+
+                      {aacSubTab === 'phrases' && <PhrasePacks onSelect={(text) => speakAndLogFn(text, 'phrase')} />}
+                      {aacSubTab === 'symbols' && <SymbolGrid onSpeak={(t) => speakAndLogFn(t, 'phrase')} />}
+                      {aacSubTab === 'core'    && <CoreVocabulary onSpeak={(t) => speakAndLogFn(t, 'phrase')} />}
+                      {aacSubTab === 'custom'  && (
                         <QuickPhrases
                           onSpeak={handlePhrase}
                           customPhrases={customPhrases}
@@ -744,7 +776,17 @@ export default function GestureTalkApp() {
                           onRemovePhrase={removePhrase}
                           currentSentence={sentence}
                         />
-                      </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fatigue mode — full screen overlay */}
+                  {fatigueModeActive && (
+                    <div className="fixed inset-0 z-50 bg-gray-950">
+                      <FatigueMode
+                        onSpeak={(t) => speakAndLogFn(t, 'phrase')}
+                        onExit={() => setFatigueModeActive(false)}
+                      />
                     </div>
                   )}
 
