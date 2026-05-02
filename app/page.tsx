@@ -29,6 +29,7 @@ import GestureTrainer from './components/GestureTrainer';
 import OnDeviceBadge from './components/OnDeviceBadge';
 import ModelPipeline from './components/ModelPipeline';
 import { usePipeline } from './hooks/usePipeline';
+import { isDemoMode } from './lib/demoMode';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 
@@ -60,6 +61,7 @@ export default function GestureTalkApp() {
   );
   // Frame capture ref — updated by CameraView
   const lastFrameRef = useRef<string | null>(null);
+  const [demoActive] = useState<boolean>(() => typeof window !== 'undefined' && isDemoMode());
   // Latest hand landmarks ref — updated by CameraView on every frame, used by GestureTrainer
   const latestLandmarksRef = useRef<number[][] | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState(() => {
@@ -362,6 +364,15 @@ export default function GestureTalkApp() {
   return (
     <main className="h-screen h-dvh bg-gray-950 text-white flex flex-col overflow-hidden">
 
+      {/* Demo mode banner */}
+      {(demoActive || pipeline.isDemo) && (
+        <div className="flex-shrink-0 bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 flex items-center justify-center gap-2" role="status" aria-live="polite">
+          <span>🎬</span>
+          <span>DEMO MODE — Pre-recorded Gemma 4 responses (Ollama offline)</span>
+          <a href="?demo=1" className="underline opacity-70 ml-2">force demo</a>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <header
         className="flex-shrink-0 border-b px-4 py-3 flex items-center justify-between"
@@ -463,6 +474,7 @@ export default function GestureTalkApp() {
             onConfirm={handleConfirm}
             onGestureChange={handleGestureChange}
             onLandmarksUpdate={handleLandmarksUpdate}
+            onFrame={(b64) => { lastFrameRef.current = b64; }}
             dwellMs={dwellMs}
           />
         </div>
@@ -808,6 +820,55 @@ export default function GestureTalkApp() {
                           Last full pipeline: {pipeline.lastTotalMs}ms total
                         </p>
                       )}
+
+                      {/* ── Demo trigger panel — works without Ollama ── */}
+                      <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 text-sm">🎬</span>
+                          <p className="text-xs text-amber-400 font-bold uppercase">Try the pipeline — no Ollama needed</p>
+                        </div>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          Tap any gesture to fire all 6 pipeline stages with pre-recorded Gemma 4 responses.
+                          Realistic latency simulation. Works 100% offline.
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'pain',    label: 'Pain',    emoji: '🩺' },
+                            { id: 'help',    label: 'Help',    emoji: '🆘' },
+                            { id: 'water',   label: 'Water',   emoji: '💧' },
+                            { id: 'doctor',  label: 'Doctor',  emoji: '👨‍⚕️' },
+                            { id: 'breathe', label: 'Breathe', emoji: '😮‍💨' },
+                            { id: 'family',  label: 'Family',  emoji: '👨‍👩‍👧' },
+                          ].map((g) => (
+                            <button
+                              key={g.id}
+                              disabled={pipeline.isRunning}
+                              onClick={() => runPipeline({
+                                landmarkGesture: g.id,
+                                landmarkMs: 12,
+                                frameBase64: null,
+                                partialSentence: '',
+                                context: 'medical',
+                                targetLang: targetLang,
+                                onComplete: (finalGesture, completions) => {
+                                  if (completions[0]) speakAndLogFn(completions[0], 'phrase');
+                                  dispatchSentence({ type: 'append', char: finalGesture });
+                                },
+                              })}
+                              className="flex flex-col items-center gap-1 bg-gray-800 hover:bg-amber-900/30 disabled:opacity-40 disabled:cursor-not-allowed border border-gray-700 hover:border-amber-700/60 text-white text-xs py-3 rounded-xl transition-colors touch-manipulation min-h-[60px]"
+                              aria-label={`Demo ${g.label} gesture through full AI pipeline`}
+                            >
+                              <span className="text-xl">{g.emoji}</span>
+                              <span className="font-medium">{g.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {pipeline.isRunning && (
+                          <p className="text-xs text-amber-400/70 text-center animate-pulse">
+                            ⚡ Pipeline running…
+                          </p>
+                        )}
+                      </div>
 
                       <button
                         onClick={resetPipeline}

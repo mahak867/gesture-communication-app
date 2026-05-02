@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const OLLAMA = process.env.OLLAMA_URL ?? "http://localhost:11434";
-const MODEL = "gemma3:4b";
+const MODEL = "gemma4";
 
 const LANG_NAMES: Record<string, string> = {
   hi: "Hindi (Devanagari script)",
