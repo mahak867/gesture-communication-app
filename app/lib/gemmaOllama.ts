@@ -1,5 +1,5 @@
 const OLLAMA = "http://localhost:11434";
-const MODEL = "gemma3:4b";
+const MODEL = "gemma4";
 
 export interface GemmaStatus {
   available: boolean;
