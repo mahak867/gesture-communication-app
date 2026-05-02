@@ -9,7 +9,10 @@ export type EventName =
   | "gemma_offline_fallback"
   | "language_changed"
   | "session_start"
-  | "session_end";
+  | "session_end"
+  | "high_pain_detected"
+  | "soap_note_generated"
+  | "emotion_detected";
 
 interface AnalyticsEvent {
   event: EventName;
