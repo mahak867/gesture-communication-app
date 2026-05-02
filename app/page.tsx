@@ -487,6 +487,7 @@ export default function GestureTalkApp() {
             onFrame={(b64) => { lastFrameRef.current = b64; }}
             tremorSmooth={tremorSmooth}
             dwellMs={dwellMs}
+            minConfidence={confidenceThreshold}
           />
           {/* Gemma 4 face emotion — compact badge below camera */}
           <div className="px-2 pb-2">

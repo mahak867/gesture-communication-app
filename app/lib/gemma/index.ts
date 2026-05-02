@@ -1,7 +1,7 @@
 // Gemma 4 on-device via Ollama — required for Gemma 4 Good hackathon (May 18 2026)
 // Features: AAC autocomplete, gesture classification, phrase expansion, emotion detection
 const OLLAMA_BASE = process.env.NEXT_PUBLIC_OLLAMA_URL ?? 'http://localhost:11434';
-const MODEL = 'gemma4';
+const MODEL = process.env.NEXT_PUBLIC_GEMMA_MODEL ?? 'gemma4';
 const TIMEOUT_MS = 5000;
 
 export interface GemmaStatus { available: boolean; model: string | null; error: string | null; }
@@ -15,7 +15,7 @@ export async function checkGemmaStatus(): Promise<GemmaStatus> {
     if (!res.ok) return { available: false, model: null, error: `HTTP ${res.status}` };
     const data = await res.json() as { models: Array<{ name: string }> };
     const has = data.models?.some(m => m.name.startsWith('gemma'));
-    return { available: has, model: has ? MODEL : null, error: has ? null : 'Run: ollama pull gemma4' };
+    return { available: has, model: has ? MODEL : null, error: has ? null : 'Run: ollama pull gemma4 (or gemma3:4b if gemma4 unavailable)' };
   } catch { return { available: false, model: null, error: 'Ollama not running at ' + OLLAMA_BASE }; }
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 const Schema = z.object({ type: z.enum(['autocomplete','gesture','expand','emotion']), payload: z.record(z.string(), z.unknown()) });
 const OLLAMA = process.env.OLLAMA_URL ?? 'http://localhost:11434';
-const MODEL  = 'gemma4';
+const MODEL = process.env.OLLAMA_MODEL ?? 'gemma4';
 async function ollama(prompt: string, maxTokens = 60): Promise<string> {
   const res = await fetch(`${OLLAMA}/api/generate`, { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ model:MODEL, prompt, stream:false, options:{ num_predict:maxTokens, temperature:0.3 } }) });
