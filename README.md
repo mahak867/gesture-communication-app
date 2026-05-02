@@ -12,6 +12,8 @@ GestureTalk uses your device camera to detect hand gestures in real-time and con
 - 🔊 **Spoken voice** — via the Web Speech Synthesis API
 - 📝 **On-screen text** — built letter-by-letter, word-by-word
 - 💬 **Persistent conversation history** — a full log of everything communicated, saved across page refreshes
+- 🤖 **AI sentence completions** — Gemma (via Ollama) suggests natural completions from partial phrases
+- 🌐 **Live translation** — Gemma translates messages into Hindi, Tamil, Telugu, Bengali, and Marathi
 
 No sign language training required to get started. Quick-phrase buttons cover the most common needs (greetings, emergencies, basic needs) instantly, and phrases are available in **English, Spanish, and French**.
 
@@ -19,28 +21,38 @@ No sign language training required to get started. Quick-phrase buttons cover th
 
 ## 🚀 Key Features
 
-| Feature | Details |
-|---|---|
-| 🤖 **On-device AI** | MediaPipe Hands (Google) — no video ever leaves the device |
-| 🖐️ **Two-hand support** | Tracks up to 2 hands simultaneously, with independent dwell timers |
-| ✋ **Expanded gesture alphabet** | Letters A, F, I, K, L, Y · Numbers 1–4 (also V, W, B aliases) · Commands SPACE, SPEAK, BACK, CLEAR |
-| 📳 **Haptic feedback** | 50 ms vibration pulse on every confirmed gesture (mobile devices) |
-| 🔔 **Sound feedback** | Web Audio API beep on gesture confirmation — no need to watch the screen |
-| ⚡ **Auto-speak mode** | Speaks and clears the sentence automatically after 3 s of gesture inactivity |
-| ↩️ **Undo / gesture history** | 30-step undo stack — revert the last confirmed gesture instantly |
-| ⌨️ **Keyboard shortcuts** | `Space` = Speak · `Backspace` = Delete · `Escape` = Clear · `Ctrl+Z` = Undo |
-| 🌐 **Language selector** | Quick phrases in English 🇬🇧, Spanish 🇪🇸, and French 🇫🇷 |
-| 📤 **Emergency share** | One-tap share current sentence via SMS / system share sheet from the Emergency phrases panel |
-| 📋 **Copy per message** | Copy any logged message to clipboard with a single tap |
-| 🔡 **Text size control** | Accessibility slider (Normal / Large / X-Large) for sentence builder and conversation log |
-| 🎙️ **Voice settings** | Voice picker, speed & pitch sliders, live preview — all persisted across sessions |
-| ⭐ **Custom phrases** | Add your own phrases — saved to device storage (localStorage) |
-| 💾 **Session persistence** | Conversation history survives page refresh (localStorage, last 50 messages) |
-| ⌨️ **Type to speak** | Keyboard fallback for any text, no gestures needed |
-| 📊 **Session stats** | Duration, gestures confirmed, messages & words sent |
-| 📱 **PWA / installable** | Add to Home Screen on iOS and Android, works offline |
-| ♿ **WCAG 2.1 AA** | ARIA tablist, focus-visible ring, live regions, 44 px touch targets |
-| 🌐 **Any device** | Responsive layout: phone, tablet, desktop, Chromebook, smart TV browser |
+| Feature | Status | Details |
+|---|---|---|
+| 🤖 **On-device AI (MediaPipe)** | ✅ Working | MediaPipe Gesture Recognizer — no video leaves the device |
+| 🖐️ **Two-hand support** | ✅ Working | Tracks up to 2 hands simultaneously, independent dwell timers |
+| ✋ **Gesture alphabet** | ✅ Working | Letters A, I, K, L, Y · Numbers 1–4 · Commands SPACE, SPEAK, BACK, CLEAR |
+| 📳 **Haptic feedback** | ✅ Working | 50 ms vibration pulse on every confirmed gesture (mobile devices) |
+| 🔔 **Sound feedback** | ✅ Working | Web Audio API beep on gesture confirmation |
+| ⚡ **Auto-speak mode** | ✅ Working | Speaks and clears the sentence automatically after 3 s of inactivity |
+| ↩️ **Undo / gesture history** | ✅ Working | 30-step undo stack |
+| ⌨️ **Keyboard shortcuts** | ✅ Working | `Space` = Speak · `Backspace` = Delete · `Escape` = Clear · `Ctrl+Z` = Undo |
+| 🌐 **Quick phrase languages** | ✅ Working | Built-in phrases in English, Spanish, and French |
+| 📤 **Emergency share** | ✅ Working | One-tap share via SMS / system share sheet |
+| 📋 **Copy per message** | ✅ Working | Copy any logged message to clipboard |
+| 🔡 **Text size control** | ✅ Working | Normal / Large / X-Large accessibility slider |
+| 🎙️ **Voice settings** | ✅ Working | Voice picker, speed & pitch sliders, persisted across sessions |
+| ⭐ **Custom phrases** | ✅ Working | Add personal phrases saved to localStorage |
+| 💾 **Session persistence** | ✅ Working | Last 50 messages survive page refresh |
+| ⌨️ **Type to speak** | ✅ Working | Keyboard fallback for any text |
+| 📊 **Session stats** | ✅ Working | Duration, gestures, messages, words |
+| 📱 **PWA / installable** | ✅ Working | Add to Home Screen on iOS and Android |
+| ♿ **WCAG 2.1 AA** | ✅ Working | ARIA tablist, live regions, 44 px touch targets, keyboard nav |
+| 🤖 **Gemma AI pipeline** | ✅ Working* | Vision + sentence completion + translation via Ollama |
+| 🌐 **AI translation** | ✅ Working* | Hindi, Tamil, Telugu, Bengali, Marathi via Gemma/Ollama |
+| 👩‍⚕️ **Caregiver dashboard** | ✅ Working | Real-time message log, AI summary via Gemma/Ollama |
+| 👤 **Patient profiles** | ✅ Working | Multiple profiles with per-profile settings |
+| 👩‍⚕️ **SLP mode** | ✅ Working | PIN-protected config, phrase packs, gesture overrides |
+| 🎯 **Gesture trainer** | ✅ Working* | Train custom gestures from live camera landmarks |
+| 📤 **Conversation export** | ✅ Working | Download history as HTML or CSV |
+| 😟 **Emotion detection** | ✅ Working* | Gemma detects emotional state from gestures |
+| 📊 **Analytics** | ✅ Working | Usage analytics dashboard at `/analytics` |
+
+> \* Requires Ollama running locally (`ollama serve` + `ollama pull gemma3:4b`). The app falls back gracefully when offline.
 
 ---
 
@@ -73,11 +85,40 @@ Use this checklist to confirm WCAG 2.1 AA compliance before each release or demo
 
 - **[Next.js 16](https://nextjs.org/)** — React framework (App Router)
 - **[Tailwind CSS 4](https://tailwindcss.com/)** — Utility-first styling
-- **[MediaPipe Hands](https://mediapipe.dev/)** — Real-time hand landmark detection (21 points per hand, up to 2 hands)
+- **[MediaPipe Tasks Vision](https://mediapipe.dev/)** — Real-time hand gesture recognition (21 landmarks per hand, up to 2 hands)
+- **[Gemma 3 (via Ollama)](https://ollama.com/)** — On-device LLM for sentence completion, translation, vision analysis, and caregiver summaries
 - **[Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis)** — Browser-native TTS
 - **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** — Gesture confirmation beep (no external dependency)
 - **[Vibration API](https://developer.mozilla.org/en-US/docs/Web/API/Vibration_API)** — Haptic feedback on mobile
 - **TypeScript** — Full type safety throughout
+
+---
+
+## 🤖 Gemma AI Pipeline
+
+When Ollama is running locally, each confirmed gesture triggers a 6-stage AI pipeline:
+
+| Stage | Model | What it does |
+|---|---|---|
+| 1. MediaPipe | On-device WASM | 21-point hand landmark detection |
+| 2. Gemma Vision | `gemma3:4b` multimodal | Analyses camera frame to confirm gesture intent + emotion |
+| 3. Ensemble | Fast math | Merges MediaPipe + vision confidence scores |
+| 4. Sentence completion | `gemma3:4b` streaming | Suggests 3 natural completions for the partial sentence |
+| 5. Translation | `gemma3:4b` | Translates into the selected Indian language |
+| 6. Web Speech TTS | Browser-native | Speaks the final result aloud |
+
+### Setup (Ollama)
+
+```bash
+# Install Ollama — https://ollama.com
+ollama serve
+ollama pull gemma3:4b
+
+# Copy and fill environment variables
+cp .env.example .env.local
+```
+
+The app works fully offline — Ollama stages fall back gracefully when unavailable.
 
 ---
 
@@ -266,13 +307,20 @@ When a sentence has been built in the sentence builder, a **📤 Share message**
 - [x] Keyboard shortcuts (Space / Backspace / Esc / Ctrl+Z)
 - [x] Language localisation — English, Spanish, French
 - [x] Emergency share via SMS / system share sheet
-- [x] Expanded gesture vocabulary (A, F, I, K, L, Y + number aliases B/V/W)
+- [x] Expanded gesture vocabulary (A, I, K, L, Y + 1–4)
+- [x] Gemma AI pipeline — vision, sentence completion, translation
+- [x] Caregiver dashboard with AI summary
+- [x] Patient profiles (multiple patients per device)
+- [x] SLP mode with PIN, phrase packs, and gesture overrides
+- [x] Personalised gesture trainer (records live landmarks)
+- [x] Conversation export (HTML + CSV)
+- [x] Health check API endpoint for model status
 - [ ] Full ASL alphabet (C, D, E, G, H, O, P, Q, R, S, T, U, X, Z) via expanded landmark rules
 - [ ] Simple ML classifier for high-accuracy full-alphabet recognition
 - [ ] Cloud sync for custom phrases (optional, opt-in)
 - [ ] More localisation languages (Mandarin, German, Portuguese, Arabic, …)
-- [ ] Caregiver mode (remote monitoring)
 - [ ] Bluetooth headset TTS support
+- [ ] Speech-to-text input (microphone fallback)
 
 ---
 

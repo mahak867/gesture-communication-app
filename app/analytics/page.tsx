@@ -10,8 +10,7 @@ export default function AnalyticsDashboard() {
   const [daily, setDaily] = useState<DailyStats[]>([]);
 
   useEffect(() => {
-    setStats(getStats());
-    // Build last 7 days chart data
+    const s = getStats();
     const events = JSON.parse(localStorage.getItem("gesturetalk_analytics") || "[]");
     const days: Record<string, DailyStats> = {};
     for (let i = 6; i >= 0; i--) {
@@ -26,7 +25,11 @@ export default function AnalyticsDashboard() {
         if (e.event === "emergency_triggered") days[key].emergencies++;
       }
     });
-    setDaily(Object.values(days));
+    const dailyData = Object.values(days);
+    setTimeout(() => {
+      setStats(s);
+      setDaily(dailyData);
+    }, 0);
   }, [getStats]);
 
   const maxMessages = Math.max(...daily.map((d) => d.messages), 1);

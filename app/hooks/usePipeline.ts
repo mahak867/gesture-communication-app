@@ -92,6 +92,7 @@ export function usePipeline() {
     let finalGesture = opts.landmarkGesture;
     let visionDesc = "";
     let emotion = "neutral";
+    let visionConfidence = 0;
 
     if (opts.frameBase64 && !signal.aborted) {
       setStage("vision", { status: "running" });
@@ -108,7 +109,8 @@ export function usePipeline() {
           signal: AbortSignal.timeout(6000),
         });
         const data = await res.json();
-        if (!data.offline && data.confidence > 0.6) {
+        visionConfidence = data.offline ? 0 : (data.confidence ?? 0);
+        if (!data.offline && visionConfidence > 0.6) {
           finalGesture = data.gesture ?? opts.landmarkGesture;
         }
         visionDesc = data.description ?? "";
@@ -125,8 +127,19 @@ export function usePipeline() {
     // ── Stage 3: Ensemble merge ───────────────────────────────────────────
     if (!signal.aborted) {
       setStage("ensemble", { status: "running" });
-      await new Promise(r => setTimeout(r, 30)); // tiny sync step
-      setStage("ensemble", { status: "done", latencyMs: 30 });
+      const ensembleStart = Date.now();
+      // Merge MediaPipe landmark result with Gemma Vision result.
+      // Vision wins when its actual confidence exceeds the landmark baseline by
+      // a meaningful margin; otherwise keep the faster landmark result.
+      const LANDMARK_CONF = 0.70; // MediaPipe baseline confidence
+      const OVERRIDE_MARGIN = 0.10; // Vision must beat landmark baseline by this margin
+      if (!visionDesc || visionConfidence < LANDMARK_CONF + OVERRIDE_MARGIN) {
+        // Vision offline or not confident enough — revert to landmark result
+        finalGesture = opts.landmarkGesture;
+      }
+      // else: vision already updated finalGesture in Stage 2 — keep it
+      const ensembleMs = Date.now() - ensembleStart;
+      setStage("ensemble", { status: "done", latencyMs: Math.max(ensembleMs, 1) });
     }
 
     // ── Stage 4: Gemma Text streaming completions ─────────────────────────
