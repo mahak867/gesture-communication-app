@@ -60,6 +60,8 @@ export default function GestureTalkApp() {
   );
   // Frame capture ref — updated by CameraView
   const lastFrameRef = useRef<string | null>(null);
+  // Latest hand landmarks ref — updated by CameraView on every frame, used by GestureTrainer
+  const latestLandmarksRef = useRef<number[][] | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState(() => {
     if (typeof window === 'undefined') return 75;
     return Number(localStorage.getItem('gesturetalk-confidence') ?? 75);
@@ -215,6 +217,13 @@ export default function GestureTalkApp() {
     (gesture: GestureResult | null, progress: number) => {
       setCurrentGesture(gesture);
       setDwellProgress(progress);
+    },
+    [],
+  );
+
+  const handleLandmarksUpdate = useCallback(
+    (landmarks: number[][]) => {
+      latestLandmarksRef.current = landmarks;
     },
     [],
   );
@@ -453,6 +462,7 @@ export default function GestureTalkApp() {
           <CameraView
             onConfirm={handleConfirm}
             onGestureChange={handleGestureChange}
+            onLandmarksUpdate={handleLandmarksUpdate}
             dwellMs={dwellMs}
           />
         </div>
@@ -1031,7 +1041,7 @@ export default function GestureTalkApp() {
                       {/* Gesture trainer */}
                       <div>
                         <h3 className="text-xs uppercase text-gray-500 font-bold mb-3">🎯 Personalised Gesture Training</h3>
-                        <GestureTrainer />
+                        <GestureTrainer captureFrame={() => latestLandmarksRef.current} />
                       </div>
 
                       {/* Export conversation */}
