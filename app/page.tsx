@@ -68,6 +68,9 @@ export default function GestureTalkApp() {
   const { oneHandedMode, setOneHandedMode } = useOneHanded();
   const { profiles, activeProfile, activeId: activeProfileId, switchProfile, addProfile, removeProfile } = useProfiles();
   const { state: pipeline, run: runPipeline, reset: resetPipeline } = usePipeline();
+
+  // Hardware hooks wired below — after all state/callbacks are declared
+  // (useWristband and useGlove call track/speakAndLogFn/dispatchSentence/setActiveTab)
   const [targetLang, setTargetLang] = useState<string>(() =>
     typeof window !== 'undefined' ? (localStorage.getItem('gesturetalk-lang') ?? 'en') : 'en'
   );
@@ -171,6 +174,24 @@ export default function GestureTalkApp() {
   );
   const speakAndLogRef = useRef(speakAndLogFn);
   useEffect(() => { speakAndLogRef.current = speakAndLogFn; }, [speakAndLogFn]);
+
+  // ── Hardware input — wristband + glove via Web Bluetooth ──────────────────
+  // Placed here so track, setActiveTab, speakAndLogFn, dispatchSentence are all declared
+  const wristband = useWristband((wristGesture) => {
+    const word = wristGestureToWord(wristGesture);
+    if (!word) return;
+    const routing = routePipeline({ source: 'wristband', gesture: wristGesture });
+    track('wristband_gesture', { gesture: wristGesture, modelPath: routing.modelPath });
+    if (wristGesture === 'sos') { setActiveTab('emergency'); return; }
+    speakAndLogFn(word, 'gesture');
+  });
+
+  const glove = useGlove((glovePred) => {
+    if (glovePred.gesture === 'unknown') return;
+    const routing = routePipeline({ source: 'glove', gesture: glovePred.gesture, gloveConfidence: glovePred.confidence });
+    track('glove_gesture', { gesture: glovePred.gesture, confidence: glovePred.confidence, modelPath: routing.modelPath });
+    dispatchSentence({ type: 'append', char: glovePred.gesture.length === 1 ? glovePred.gesture : glovePred.gesture + ' ' });
+  });
 
   /* ── Camera callbacks ── */
   const handleConfirm = useCallback(
@@ -1011,6 +1032,37 @@ export default function GestureTalkApp() {
                   {/* ── Settings tab ── */}
                   {tab.id === 'settings' && (
                     <div className="flex flex-col gap-6">
+                      {/* Hardware — wristband + glove */}
+                      <HardwareConnect
+                        onWristGesture={(g) => {
+                          const word = wristGestureToWord(g);
+                          if (g === 'sos') { setActiveTab('emergency'); return; }
+                          if (word) speakAndLogFn(word, 'gesture');
+                        }}
+                        onGlovePrediction={(p) => {
+                          if (p.gesture !== 'unknown' && p.confidence > 0.7)
+                            dispatchSentence({ type: 'append', char: p.gesture.length === 1 ? p.gesture : p.gesture + ' ' });
+                        }}
+                      />
+
+                      {/* Hardware status badges */}
+                      {(wristband.connected || glove.connected) && (
+                        <div className="flex gap-2 flex-wrap">
+                          {wristband.connected && (
+                            <span className="flex items-center gap-1.5 text-xs bg-blue-900/30 border border-blue-700/50 text-blue-300 px-3 py-1.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                              Wristband · {wristband.gesture}
+                            </span>
+                          )}
+                          {glove.connected && glove.prediction && (
+                            <span className="flex items-center gap-1.5 text-xs bg-violet-900/30 border border-violet-700/50 text-violet-300 px-3 py-1.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+                              Glove · {glove.prediction.gesture} ({(glove.prediction.confidence*100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <VoiceSettings
                         voices={voices}
                         isSpeaking={isSpeaking}

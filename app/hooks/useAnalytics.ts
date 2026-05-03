@@ -12,7 +12,11 @@ export type EventName =
   | "session_end"
   | "high_pain_detected"
   | "soap_note_generated"
-  | "emotion_detected";
+  | "emotion_detected"
+  | "wristband_gesture"
+  | "glove_gesture"
+  | "hardware_connected"
+  | "hardware_disconnected";
 
 interface AnalyticsEvent {
   event: EventName;
