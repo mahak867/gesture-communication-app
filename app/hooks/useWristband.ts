@@ -123,5 +123,10 @@ export function useWristband(onGesture?: (g: WristGesture) => void) {
     setState(s => ({ ...s, connected: false, gesture: 'idle' }));
   }, []);
 
+  // Cleanup on unmount — disconnect BLE to free browser resources
+  useEffect(() => {
+    return () => { deviceRef.current?.gatt?.disconnect(); };
+  }, []);
+
   return { ...state, connect, disconnect };
 }

@@ -167,5 +167,9 @@ export function useGlove(onPrediction?: (p: GlovePrediction) => void) {
     setState(s => ({ ...s, connected:false, prediction:null }));
   }, []);
 
+  useEffect(() => {
+    return () => { deviceRef.current?.gatt?.disconnect(); };
+  }, []);
+
   return { ...state, connect, disconnect };
 }
