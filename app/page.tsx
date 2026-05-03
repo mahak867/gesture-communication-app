@@ -38,6 +38,10 @@ import YesNoBar from './components/aac/YesNoBar';
 import SymbolGrid from './components/aac/SymbolGrid';
 import CoreVocabulary from './components/aac/CoreVocabulary';
 import FatigueMode from './components/aac/FatigueMode';
+import HardwareConnect from './components/HardwareConnect';
+import { useWristband } from './hooks/useWristband';
+import { useGlove } from './hooks/useGlove';
+import { wristGestureToWord, routePipeline } from './lib/pipeline';
 import type { GestureResult } from './lib/gestures';
 import { sentenceReducer } from './lib/sentenceReducer';
 

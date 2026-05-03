@@ -47,12 +47,12 @@ Consider medical urgency carefully — err toward higher urgency when uncertain.
     };
 
     if (frameBase64) {
+      // Ollama uses top-level "images" array for multimodal, not OpenAI image_url format
+      const stripped = frameBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+      (body as Record<string, unknown>).images = [stripped];
       (body.messages as Array<Record<string, unknown>>)[1] = {
         role: "user",
-        content: [
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${frameBase64}` } },
-          { type: "text", text: "Analyze this patient gesture and call the function with your analysis." },
-        ],
+        content: "Analyze this patient gesture visible in the image and call the function with your analysis.",
       };
     }
 

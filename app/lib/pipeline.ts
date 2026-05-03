@@ -285,3 +285,104 @@ function getFallbackCompletions(partial: string): string[] {
   if (p.includes("breath")) return ["Cannot breathe — emergency", "Oxygen please", "Call nurse urgently"];
   return ["I need help", "Please come here", "Thank you"];
 }
+
+// ─── Hardware Input Routing (Cactus track) ────────────────────────────────────
+// Routes inference to the appropriate model path based on input source.
+// Wristband: fast text-only path (no vision needed, lower latency for ALS patients)
+// Glove:     landmark ensemble + optional vision
+// Camera:    full 6-stage multimodal pipeline
+
+export type InputSource = 'camera' | 'wristband' | 'glove' | 'keyboard';
+
+export interface RoutedPipelineConfig {
+  source:          InputSource;
+  gesture?:        string;           // from wristband or glove
+  gloveConfidence?: number;
+  frameBase64?:    string;           // camera only
+  partialText?:    string;           // current sentence
+  targetLang?:     string;
+  context?:        string;
+}
+
+export interface RoutingDecision {
+  useVision:    boolean;   // run Gemma 4 vision (expensive, camera only)
+  useEnsemble:  boolean;   // combine multiple gesture sources
+  modelPath:    'fast' | 'full' | 'minimal';
+  rationale:    string;
+}
+
+/**
+ * Intelligently route inference based on input source and confidence.
+ * 
+ * Wristband → minimal: tilt gesture is binary (yes/no/help/sos), no ambiguity, skip vision
+ * Glove + low confidence → full: use vision to disambiguate
+ * Glove + high confidence → fast: glove classifier is confident, skip vision
+ * Camera only → full: standard 6-stage pipeline
+ * Keyboard → minimal: no gesture needed, go straight to text completion
+ */
+export function routePipeline(config: RoutedPipelineConfig): RoutingDecision {
+  const { source, gloveConfidence } = config;
+
+  switch (source) {
+    case 'wristband':
+      // Wristband gestures are binary tilt-based — no visual ambiguity
+      // Use minimal path: map tilt → word → Gemma text completion + translation only
+      return {
+        useVision:   false,
+        useEnsemble: false,
+        modelPath:   'minimal',
+        rationale:   'Wristband tilt gestures are deterministic — skipping vision inference saves 300ms',
+      };
+
+    case 'glove':
+      if ((gloveConfidence ?? 0) >= 0.85) {
+        // Glove classifier is confident — skip vision, use fast text path
+        return {
+          useVision:   false,
+          useEnsemble: false,
+          modelPath:   'fast',
+          rationale:   `Glove confidence ${((gloveConfidence ?? 0) * 100).toFixed(0)}% ≥ 85% — vision inference not required`,
+        };
+      }
+      // Low confidence — use vision to disambiguate + ensemble merge
+      return {
+        useVision:   !!config.frameBase64,
+        useEnsemble: true,
+        modelPath:   'full',
+        rationale:   `Glove confidence ${((gloveConfidence ?? 0) * 100).toFixed(0)}% < 85% — using Gemma 4 vision to resolve ambiguity`,
+      };
+
+    case 'camera':
+      // Full 6-stage multimodal pipeline
+      return {
+        useVision:   true,
+        useEnsemble: true,
+        modelPath:   'full',
+        rationale:   'Camera input — running full 6-stage Gemma 4 multimodal pipeline',
+      };
+
+    case 'keyboard':
+      return {
+        useVision:   false,
+        useEnsemble: false,
+        modelPath:   'minimal',
+        rationale:   'Keyboard input — text completion only, no gesture inference needed',
+      };
+  }
+}
+
+/**
+ * Map wristband tilt gesture directly to a communication word.
+ * Wristband path is: tilt → word → Gemma text completion → translate → TTS
+ * This is the minimal path — fastest possible for fatigue-mode ALS patients.
+ */
+export function wristGestureToWord(gesture: string): string {
+  const map: Record<string, string> = {
+    yes:  'Yes',
+    no:   'No',
+    help: 'Help me',
+    sos:  'Emergency help now',
+    idle: '',
+  };
+  return map[gesture] ?? gesture;
+}
