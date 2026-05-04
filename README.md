@@ -177,3 +177,30 @@ Most AAC tools cost ₹80,000+. Most hackathon entries use Gemma for one task. G
 ![footer](https://capsule-render.vercel.app/api?type=waving&color=0891b2&height=80&section=footer)
 
 </div>
+
+---
+
+## Pages
+
+| Page | URL | Purpose |
+|------|-----|---------|
+| Main app | `/` | Full GestureTalk interface |
+| Demo mode | `/demo` | Auto-starts demo — no Ollama needed |
+| Case study | `/casestudy` | Real patient scenario — Ravi Kumar, ALS, AIIMS Delhi |
+| Comparison | `/compare` | GestureTalk vs MediFlow AI vs traditional AAC |
+| Caregiver | `/caregiver` | Nurse/carer dashboard |
+| Medical ID | `/medicalid` | Emergency patient ID card |
+| Analytics | `/analytics` | Usage analytics |
+| Privacy | `/privacy` | HIPAA + DPDP Act compliance |
+| Waitlist | `/waitlist` | Hospital/NGO interest form |
+
+---
+
+## Competitive position
+
+GestureTalk is the only AAC submission that combines:
+- Patient-facing (not staff workflow automation)
+- On-device offline (Gemma 4 via Ollama, no cloud)
+- Physical hardware integration (BLE wristband + flex sensor glove)
+- 6 Indian languages including ISL support
+- Free forever — deployed today on any existing hospital phone

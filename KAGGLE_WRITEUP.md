@@ -141,3 +141,14 @@ Every person deserves to be heard. Gemma 4 makes that possible at ₹0.
 **GitHub:** github.com/mahak867/gesture-communication-app
 **Live Demo:** gesturetalk.vercel.app/demo
 **Built by:** Mahak Fahad — mahakfahad07@gmail.com
+
+---
+
+## Competitive Differentiation
+
+The closest comparable submission in the visible competition is MediFlow AI — a Gemma 4 clinical workflow tool for Indian hospitals. The critical difference: MediFlow automates paperwork for hospital staff. GestureTalk gives mute patients a voice. These serve entirely different users. A hospital administrator who uses MediFlow still cannot help the ALS patient in Bed 7 who cannot call for help. GestureTalk is the only submission that puts Gemma 4 directly in the hands of the patient.
+
+Further: GestureTalk is the only health submission with physical hardware integration (BLE wristband + flex sensor glove), enabling patients who cannot hold a phone toward a camera — late-stage ALS, locked-in syndrome, post-surgical ICU patients lying flat — to communicate using minimal wrist movement.
+
+**Live case study:** gesturetalk.vercel.app/casestudy
+**Feature comparison:** gesturetalk.vercel.app/compare
