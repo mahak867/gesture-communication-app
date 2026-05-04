@@ -137,3 +137,70 @@ export async function simulateDemoStage(stageId: string, frame: DemoFrame): Prom
   };
   await new Promise(r => setTimeout(r, delays[stageId] ?? 50));
 }
+
+// Additional frames for wristband + glove demo scenarios
+export const WRISTBAND_DEMO_FRAMES = [
+  {
+    source: 'wristband' as const,
+    gesture: 'yes',
+    word: 'Yes',
+    translation: 'हाँ',
+    tamilTranslation: 'ஆம்',
+    latencyMs: 48, // minimal path — no vision
+    routing: 'minimal (wristband tilt — skipped Gemma Vision)',
+  },
+  {
+    source: 'wristband' as const,
+    gesture: 'no',
+    word: 'No',
+    translation: 'नहीं',
+    tamilTranslation: 'இல்லை',
+    latencyMs: 51,
+    routing: 'minimal (wristband tilt — skipped Gemma Vision)',
+  },
+  {
+    source: 'wristband' as const,
+    gesture: 'help',
+    word: 'Help me',
+    translation: 'मुझे मदद चाहिए',
+    tamilTranslation: 'எனக்கு உதவி தேவை',
+    latencyMs: 63,
+    routing: 'minimal (wristband tilt — skipped Gemma Vision)',
+  },
+  {
+    source: 'wristband' as const,
+    gesture: 'sos',
+    word: 'Emergency help now',
+    translation: 'आपातकाल — अभी मदद चाहिए',
+    tamilTranslation: 'அவசரநிலை — இப்போதே உதவி தேவை',
+    latencyMs: 29, // SOS fires instantly — no AI needed
+    routing: 'direct (SOS — bypasses all AI for zero latency)',
+  },
+];
+
+export const GLOVE_DEMO_FRAMES = [
+  {
+    source: 'glove' as const,
+    gesture: 'A',
+    fingers: { thumb: 0.1, index: 0.9, middle: 0.9, ring: 0.9, pinky: 0.9 },
+    confidence: 0.91,
+    routing: 'fast (glove confidence 91% — skipped Gemma Vision)',
+    latencyMs: 89,
+  },
+  {
+    source: 'glove' as const,
+    gesture: 'B',
+    fingers: { thumb: 0.85, index: 0.05, middle: 0.05, ring: 0.05, pinky: 0.05 },
+    confidence: 0.87,
+    routing: 'fast (glove confidence 87% — skipped Gemma Vision)',
+    latencyMs: 92,
+  },
+  {
+    source: 'glove' as const,
+    gesture: 'L',
+    fingers: { thumb: 0.08, index: 0.06, middle: 0.92, ring: 0.91, pinky: 0.89 },
+    confidence: 0.62, // low confidence — triggers full pipeline
+    routing: 'full (glove confidence 62% < 85% — running Gemma 4 Vision to disambiguate)',
+    latencyMs: 378,
+  },
+];
