@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 760" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <title>GestureTalk Glove – schematic (rev 1)</title>
+  <rect width="1100" height="760" fill="#ffffff"/>
+  <style>
+    .w{stroke:#1a1a1a;stroke-width:2;fill:none}
+    .p{stroke:#c0261a;stroke-width:2;fill:none}
+    .g{stroke:#1f5fbf;stroke-width:2;fill:none}
+    .s{stroke:#1e7a3e;stroke-width:2;fill:none}
+    .box{fill:#f4f6fa;stroke:#1a1a1a;stroke-width:2}
+    .t{fill:#1a1a1a}
+    .h{font-size:16px;font-weight:bold}
+    .sm{font-size:11px;fill:#444}
+  </style>
+
+  <text x="20" y="30" class="t h">GestureTalk Glove — schematic rev 1</text>
+  <text x="20" y="50" class="sm">Red = 3V3 · Blue = GND · Green = signal · All flex inputs on ADC1. Values: R1–R5 47 kΩ, C1–C5 100 nF, R6/R7 100 kΩ, C6 100 nF, R8 1 kΩ, Q1 2N2222A, D1 1N4148.</text>
+
+  <!-- ───── 3V3 and GND rails ───── -->
+  <line x1="60" y1="90" x2="440" y2="90" class="p"/>
+  <text x="62" y="84" class="t">3V3 (from XIAO 3V3 pin)</text>
+  <line x1="60" y1="560" x2="440" y2="560" class="g"/>
+  <text x="62" y="578" class="t">GND</text>
+
+  <!-- ───── Five flex dividers ───── -->
+  <g id="flex">
+    <!-- template drawn 5 times at x = 90,160,230,300,370 -->
+  </g>
+  <g>
+    <!-- Thumb -->
+    <line x1="90" y1="90" x2="90" y2="130" class="p"/>
+    <rect x="80" y="130" width="20" height="90" rx="4" fill="#fff4d6" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="78" y="240" class="sm">FLEX1</text>
+    <line x1="90" y1="220" x2="90" y2="330" class="w"/>
+    <circle cx="90" cy="330" r="4" fill="#1a1a1a"/>
+    <rect x="82" y="360" width="16" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <line x1="90" y1="330" x2="90" y2="360" class="w"/>
+    <text x="100" y="395" class="sm">R1</text>
+    <line x1="90" y1="420" x2="90" y2="560" class="g"/>
+    <line x1="90" y1="330" x2="60" y2="330" class="w"/><line x1="60" y1="330" x2="60" y2="470" class="w"/>
+    <line x1="48" y1="470" x2="72" y2="470" class="w"/><line x1="48" y1="478" x2="72" y2="478" class="w"/>
+    <line x1="60" y1="478" x2="60" y2="560" class="g"/><text x="20" y="478" class="sm">C1</text>
+    <text x="70" y="120" class="t">Thumb</text>
+
+    <!-- Index -->
+    <line x1="160" y1="90" x2="160" y2="130" class="p"/>
+    <rect x="150" y="130" width="20" height="90" rx="4" fill="#fff4d6" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="148" y="240" class="sm">FLEX2</text>
+    <line x1="160" y1="220" x2="160" y2="345" class="w"/>
+    <circle cx="160" cy="345" r="4" fill="#1a1a1a"/>
+    <line x1="160" y1="345" x2="160" y2="360" class="w"/>
+    <rect x="152" y="360" width="16" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="170" y="395" class="sm">R2</text>
+    <line x1="160" y1="420" x2="160" y2="560" class="g"/>
+    <text x="140" y="120" class="t">Index</text>
+
+    <!-- Middle -->
+    <line x1="230" y1="90" x2="230" y2="130" class="p"/>
+    <rect x="220" y="130" width="20" height="90" rx="4" fill="#fff4d6" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="218" y="240" class="sm">FLEX3</text>
+    <line x1="230" y1="220" x2="230" y2="360" class="w"/>
+    <circle cx="230" cy="300" r="4" fill="#1a1a1a"/>
+    <rect x="222" y="360" width="16" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="240" y="395" class="sm">R3</text>
+    <line x1="230" y1="420" x2="230" y2="560" class="g"/>
+    <text x="210" y="120" class="t">Middle</text>
+
+    <!-- Ring -->
+    <line x1="300" y1="90" x2="300" y2="130" class="p"/>
+    <rect x="290" y="130" width="20" height="90" rx="4" fill="#fff4d6" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="288" y="240" class="sm">FLEX4</text>
+    <line x1="300" y1="220" x2="300" y2="360" class="w"/>
+    <circle cx="300" cy="285" r="4" fill="#1a1a1a"/>
+    <rect x="292" y="360" width="16" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="310" y="395" class="sm">R4</text>
+    <line x1="300" y1="420" x2="300" y2="560" class="g"/>
+    <text x="284" y="120" class="t">Ring</text>
+
+    <!-- Pinky -->
+    <line x1="370" y1="90" x2="370" y2="130" class="p"/>
+    <rect x="360" y="130" width="20" height="90" rx="4" fill="#fff4d6" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="358" y="240" class="sm">FLEX5</text>
+    <line x1="370" y1="220" x2="370" y2="360" class="w"/>
+    <circle cx="370" cy="270" r="4" fill="#1a1a1a"/>
+    <rect x="362" y="360" width="16" height="60" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="380" y="395" class="sm">R5</text>
+    <line x1="370" y1="420" x2="370" y2="560" class="g"/>
+    <text x="356" y="120" class="t">Pinky</text>
+    <text x="120" y="520" class="sm">C2–C5 (100 nF) from each divider node to GND, as C1 — omitted for clarity</text>
+  </g>
+
+  <!-- Signal lines from divider nodes to MCU -->
+  <path d="M90 330 L90 330" class="s"/>
+  <path d="M90 330 L130 330 L130 315 L500 315" class="s"/>
+  <path d="M160 345 L500 345" class="s"/>
+  <path d="M230 300 L500 300" class="s"/>
+  <path d="M300 285 L500 285" class="s"/>
+  <path d="M370 270 L500 270" class="s"/>
+  <text x="440" y="266" class="sm">GPIO7</text>
+  <text x="440" y="281" class="sm">GPIO4</text>
+  <text x="440" y="296" class="sm">GPIO3</text>
+  <text x="440" y="311" class="sm">GPIO1</text>
+  <text x="440" y="341" class="sm">GPIO2</text>
+
+  <!-- ───── XIAO ESP32S3 ───── -->
+  <rect x="500" y="200" width="200" height="300" class="box"/>
+  <text x="500" y="178" class="t h">U1 XIAO ESP32S3</text>
+  <text x="500" y="194" class="sm">BLE 5 · Li-Po charger built in</text>
+  <g class="t">
+    <text x="508" y="274">D8 pinky</text>
+    <text x="508" y="289">D3 ring</text>
+    <text x="508" y="304">D2 middle</text>
+    <text x="508" y="319">D0 thumb</text>
+    <text x="508" y="349">D1 index</text>
+    <text x="508" y="440">3V3</text>
+    <text x="508" y="470">GND</text>
+    <text x="692" y="234" text-anchor="end">SDA D4</text>
+    <text x="692" y="254" text-anchor="end">SCL D5</text>
+    <text x="692" y="294" text-anchor="end">motor D6</text>
+    <text x="692" y="384" text-anchor="end">batt D10</text>
+    <text x="692" y="409" text-anchor="end">button D7</text>
+    <text x="692" y="490" text-anchor="end">BAT± pads</text>
+  </g>
+  <line x1="500" y1="440" x2="470" y2="440" class="p"/><line x1="470" y1="440" x2="470" y2="90" class="p"/><line x1="440" y1="90" x2="470" y2="90" class="p"/>
+  <line x1="500" y1="470" x2="455" y2="470" class="g"/><line x1="455" y1="470" x2="455" y2="560" class="g"/><line x1="440" y1="560" x2="455" y2="560" class="g"/>
+
+  <!-- ───── MPU-6050 ───── -->
+  <rect x="820" y="90" width="200" height="120" class="box"/>
+  <text x="835" y="115" class="t h">U2 MPU-6050 (GY-521)</text>
+  <text x="835" y="140" class="t">VCC ← 3V3   GND ← GND</text>
+  <text x="835" y="160" class="t">SDA ← D4 (GPIO5)</text>
+  <text x="835" y="180" class="t">SCL ← D5 (GPIO6)</text>
+  <text x="835" y="200" class="sm">Board has 4.7 kΩ pull-ups · AD0 → GND (0x68)</text>
+  <path d="M700 250 L760 250 L760 180 L820 180" class="s"/>
+  <path d="M700 230 L780 230 L780 160 L820 160" class="s"/>
+  <text x="826" y="232" class="sm">Mount on back of hand · Y arrow toward thumb</text>
+
+  <!-- ───── Vibration motor driver ───── -->
+  <text x="930" y="355" class="t h">Haptic driver</text>
+  <path d="M700 290 L760 290 L760 330 L790 330" class="s"/>
+  <rect x="790" y="322" width="50" height="16" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+  <text x="800" y="317" class="sm">R8 1k</text>
+  <line x1="840" y1="330" x2="880" y2="330" class="s"/>
+  <circle cx="900" cy="330" r="22" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+  <line x1="884" y1="316" x2="884" y2="344" class="w"/>
+  <line x1="884" y1="322" x2="905" y2="305" class="w"/><line x1="884" y1="338" x2="905" y2="355" class="w"/>
+  <text x="930" y="335" class="t">Q1 2N2222A</text>
+  <line x1="905" y1="355" x2="905" y2="400" class="g"/><text x="912" y="395" class="sm">E → GND</text>
+  <line x1="905" y1="305" x2="905" y2="290" class="w"/>
+  <circle cx="905" cy="270" r="16" fill="#e8f1ff" stroke="#1a1a1a" stroke-width="2"/><text x="898" y="275" class="t">M</text>
+  <text x="880" y="266" class="t" text-anchor="end">M1 coin motor</text>
+  <line x1="905" y1="254" x2="905" y2="240" class="p"/><text x="912" y="245" class="sm">3V3</text>
+  <path d="M960 290 L960 250" class="w"/><polygon points="952,280 968,280 960,266" fill="#1a1a1a"/><line x1="952" y1="264" x2="968" y2="264" class="w"/>
+  <line x1="905" y1="290" x2="960" y2="290" class="w"/><line x1="905" y1="250" x2="960" y2="250" class="w"/>
+  <text x="972" y="285" class="sm">D1 1N4148 flyback</text>
+
+  <!-- ───── Button ───── -->
+  <path d="M700 410 L700 410" class="s"/>
+  <text x="508" y="530" class="sm"> </text>
+  <path d="M600 500 L600 500" class="s"/>
+  <text x="820" y="440" class="t h">SW2 calibrate button</text>
+  <path d="M700 405 L780 405 L780 460 L820 460" class="s"/>
+  <circle cx="830" cy="460" r="4" fill="#1a1a1a"/><circle cx="880" cy="460" r="4" fill="#1a1a1a"/>
+  <line x1="826" y1="448" x2="884" y2="448" class="w"/><line x1="855" y1="448" x2="855" y2="438" class="w"/>
+  <line x1="880" y1="460" x2="920" y2="460" class="g"/><text x="926" y="465" class="sm">GND (internal pull-up)</text>
+
+  <!-- ───── Power ───── -->
+  <text x="500" y="600" class="t h">Power</text>
+  <rect x="500" y="620" width="90" height="50" class="box"/><text x="508" y="642" class="t">BT1 Li-Po</text><text x="508" y="660" class="sm">3.7 V 500 mAh</text>
+  <line x1="590" y1="635" x2="640" y2="635" class="p"/>
+  <circle cx="645" cy="635" r="4" fill="#1a1a1a"/><line x1="648" y1="633" x2="680" y2="620" class="w"/><circle cx="685" cy="635" r="4" fill="#1a1a1a"/>
+  <text x="630" y="660" class="sm">SW1 slide switch</text>
+  <line x1="689" y1="635" x2="760" y2="635" class="p"/>
+  <line x1="760" y1="635" x2="760" y2="500" class="p"/><text x="700" y="625" class="sm">to BAT+ pad</text>
+  <line x1="590" y1="660" x2="600" y2="660" class="g"/><line x1="600" y1="660" x2="600" y2="700" class="g"/><text x="606" y="705" class="sm">BAT− pad</text>
+  <!-- battery sense divider -->
+  <line x1="760" y1="600" x2="840" y2="600" class="p"/>
+  <rect x="832" y="560" width="16" height="40" fill="#fff" stroke="#1a1a1a" stroke-width="2" transform="rotate(0)"/>
+  <text x="854" y="584" class="sm">R6 100k</text>
+  <line x1="840" y1="560" x2="840" y2="545" class="w"/>
+  <circle cx="840" cy="545" r="4" fill="#1a1a1a"/>
+  <path d="M840 545 L740 545 L740 380 L700 380" class="s"/>
+  <line x1="840" y1="545" x2="840" y2="530" class="w"/>
+  <rect x="832" y="490" width="16" height="40" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+  <text x="854" y="514" class="sm">R7 100k</text>
+  <line x1="840" y1="490" x2="840" y2="480" class="g"/><text x="848" y="484" class="sm">GND</text>
+  <text x="880" y="545" class="sm">C6 100 nF across R7</text>
+
+  <text x="20" y="740" class="sm">Charging: USB-C on the XIAO charges BT1 through its on-board charger (switch SW1 must be ON to charge). Not for use in MRI. Remove before defibrillation.</text>
+</svg>

@@ -1,11 +1,11 @@
 {
-  "name": "GestureTalk – Sign Language Communication",
+  "name": "GestureTalk – patient communication board",
   "short_name": "GestureTalk",
-  "description": "Real-time sign language to voice and text — designed for people with speech and hearing challenges.",
+  "description": "Free, offline communication board for patients who cannot speak.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#030712",
-  "theme_color": "#030712",
+  "background_color": "#f7f7f5",
+  "theme_color": "#1f5fbf",
   "orientation": "any",
   "icons": [
     {

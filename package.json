@@ -1,12 +1,12 @@
 {
-  "name": "gesture-app",
-  "version": "1.0.0",
+  "name": "gesturetalk",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {
