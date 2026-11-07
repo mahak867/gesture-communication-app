@@ -83,11 +83,13 @@ export function TranslateView({ onShow, goSigns }: { onShow: () => void; goSigns
 
 function Setup({ icon, title, text, action }: { icon: string; title: string; text: string; action: { label: string; run: () => void } }) {
   return (
-    <section className="card flex flex-wrap items-center gap-4 border-[var(--accent)] p-4">
-      <span aria-hidden className="text-[2.4rem]">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <h2 className="text-[1.1em] font-bold">{title}</h2>
-        <p className="text-[0.92em] text-[var(--muted)]">{text}</p>
+    <section className="card grid gap-3 border-[var(--accent)] p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+      <div className="flex items-start gap-3 sm:contents">
+        <span aria-hidden className="text-[2.4rem] leading-none">{icon}</span>
+        <div className="min-w-0">
+          <h2 className="text-[1.1em] font-bold">{title}</h2>
+          <p className="text-[0.92em] text-[var(--muted)]">{text}</p>
+        </div>
       </div>
       <button type="button" className="key key--accent px-5 py-3" onClick={action.run}>{action.label}</button>
     </section>

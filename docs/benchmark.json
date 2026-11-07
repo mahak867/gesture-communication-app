@@ -1,0 +1,42 @@
+{
+  "generated": "2026-11-07T20:56:39.143Z",
+  "note": "Simulated demo-glove hands (scripts/benchmark.bench.ts). Not patient data.",
+  "rows": [
+    {
+      "condition": "steady",
+      "signs": 7,
+      "trainPerSign": 4,
+      "trials": 105,
+      "accuracy": 1,
+      "wrongSign": 0,
+      "notRecognised": 0,
+      "untaughtRejected": 1,
+      "segmentationErrors": 0,
+      "msPerSign": 1.84
+    },
+    {
+      "condition": "mild tremor",
+      "signs": 7,
+      "trainPerSign": 4,
+      "trials": 105,
+      "accuracy": 0.905,
+      "wrongSign": 0,
+      "notRecognised": 0.095,
+      "untaughtRejected": 1,
+      "segmentationErrors": 0,
+      "msPerSign": 1.92
+    },
+    {
+      "condition": "strong tremor",
+      "signs": 7,
+      "trainPerSign": 4,
+      "trials": 100,
+      "accuracy": 0.97,
+      "wrongSign": 0,
+      "notRecognised": 0.03,
+      "untaughtRejected": 1,
+      "segmentationErrors": 5,
+      "msPerSign": 1.8
+    }
+  ]
+}
