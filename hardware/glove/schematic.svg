@@ -157,7 +157,7 @@
   <path d="M700 410 L700 410" class="s"/>
   <text x="508" y="530" class="sm"> </text>
   <path d="M600 500 L600 500" class="s"/>
-  <text x="820" y="440" class="t h">SW2 calibrate button</text>
+  <text x="820" y="440" class="t h">SW2 carer button</text>
   <path d="M700 405 L780 405 L780 460 L820 460" class="s"/>
   <circle cx="830" cy="460" r="4" fill="#1a1a1a"/><circle cx="880" cy="460" r="4" fill="#1a1a1a"/>
   <line x1="826" y1="448" x2="884" y2="448" class="w"/><line x1="855" y1="448" x2="855" y2="438" class="w"/>

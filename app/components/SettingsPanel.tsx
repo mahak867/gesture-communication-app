@@ -95,6 +95,18 @@ export function SettingsPanel() {
         </Row>
       )}
 
+      <Row label={`Sign recognition: ${s.strictness < 0.9 ? 'lenient' : s.strictness > 1.2 ? 'strict' : 'balanced'}`} hint="Lenient suits tremor or weak movement; strict makes fewer mistakes but asks for clearer signs.">
+        <input type="range" className="h-10 accent-[var(--accent)]" min={0.6} max={1.6} step={0.1} value={s.strictness} onChange={(e) => setSettings({ strictness: +e.target.value })} />
+      </Row>
+
+      <Row label={s.autoSpeakMs ? `Speak sentence after ${(s.autoSpeakMs / 1000).toFixed(1)} s pause` : 'Auto-speak: off'} hint="Off = speak with the speak sign or button.">
+        <input type="range" className="h-10 accent-[var(--accent)]" min={0} max={8000} step={500} value={s.autoSpeakMs} onChange={(e) => setSettings({ autoSpeakMs: +e.target.value })} />
+      </Row>
+
+      <Row label="Learn from use" hint="Signs that are recognised and not undone become new practice, so the glove keeps up as movement changes.">
+        <input type="checkbox" className="h-7 w-7 accent-[var(--accent)]" checked={s.learnFromUse} onChange={(e) => setSettings({ learnFromUse: e.target.checked })} />
+      </Row>
+
       <Row label="High contrast">
         <input type="checkbox" className="h-7 w-7 accent-[var(--accent)]" checked={s.highContrast} onChange={(e) => setSettings({ highContrast: e.target.checked })} />
       </Row>

@@ -1,22 +1,13 @@
 # GestureTalk Glove
 
-The glove is the main way to use GestureTalk. Five flex sensors and a motion sensor read the hand. The glove recognises a small set of gestures itself and sends them to the app over Bluetooth. The app then speaks, moves the highlight, or raises the alarm.
+The glove is how a person who cannot speak, because of ALS/MND, stroke, cerebral palsy, a tracheostomy and so on, signs to the GestureTalk app. Five flex sensors and a motion sensor stream hand movement at 50 Hz over Bluetooth. **The app learns the wearer's own signs** from a few examples, then turns them into text and speech.
 
-| Gesture | Event | What the app does |
-|---|---|---|
-| ☝️ Point with index finger (hold ~0.6 s) | `NEXT` | Moves the highlight forward. Keeps repeating while held. |
-| ✌️ Index + middle finger | `PREV` | Moves the highlight back |
-| ✊ Short fist, then release | `SELECT` | Presses the highlighted button |
-| ✊ Fist held 3 s (warning buzz at 1.5 s) | `HELP` | Full-screen urgent alarm with sound |
-| 👍 Thumb up | `YES` | Says "Yes" |
-| 👎 Thumb down (hand turned over) | `NO` | Says "No" |
-| ✋ Open, relaxed hand | — | Rest. Nothing happens. |
+The glove does no recognition itself. It only measures and streams. This means:
+- a person's signs can be taught, improved and backed up without reflashing the glove;
+- one glove can be shared by several patients, each with their own profile;
+- recognition improves through app updates.
 
-Why so few gestures? Hospital patients are often weak, sedated or have a tremor, and a misread such as a false "yes" can be dangerous. Previous GestureTalk versions tried fingerspelling and failed for those reasons. The glove uses large, distinct hand shapes, each held steady before it counts. With point / fist alone, the glove can still reach every button in the app (switch-scanning style), so typing works too.
-
-**Limited finger movement?** Calibration measures how far each finger moves. A finger that barely moves is marked *ignored*, so it doesn't block any gesture. For example, someone who can only move thumb and index finger can still use NEXT, SELECT/HELP and YES/NO.
-
----
+Why personal signs instead of standard sign language? Most people who lose speech through ALS or stroke never learned a sign language, and their hands often can't form textbook handshapes. Gloves that only recognise a fixed alphabet fail them. GestureTalk instead asks: *what movement can this person make reliably?* That movement then becomes "water", "turn me over" or "I love you".
 
 ## 1. Parts list (one glove)
 
@@ -34,7 +25,7 @@ Why so few gestures? Hospital patients are often weak, sedated or have a tremor,
 | C1–C6 | 100 nF ceramic capacitor | 6 | ADC noise filtering | 10 |
 | BT1 | 3.7 V Li-Po, 400–600 mAh, **with protection circuit**, JST-PH | 1 | Lasts about 10–14 h | 350 |
 | SW1 | Mini slide switch | 1 | Power | 10 |
-| SW2 | 6 mm tactile button | 1 | Hold 2 s to calibrate | 5 |
+| SW2 | 6 mm tactile button | 1 | Carer button (state is streamed to the app) | 5 |
 | — | Stretch glove, cotton/lycra, **latex-free** | 2 | Buy two, so one can be washed while the other is used | 200 |
 | — | Perfboard 3 × 4 cm, or the PCB (see §7) | 1 | | 30 |
 | — | Silicone-insulated wire 28–30 AWG, 6 colours | ~3 m | Silicone stays flexible | 150 |
@@ -103,23 +94,23 @@ Only ADC1 pins (GPIO 1–10) are used for analog readings. ADC2 gives unreliable
    arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32S3 firmware/gesturetalk_glove
    ```
    ```bash
-   arduino-cli upload  --fqbn esp32:esp32:XIAO_ESP32S3 -p /dev/ttyACM0 firmware/gesturetalk_glove
+   arduino-cli upload --fqbn esp32:esp32:XIAO_ESP32S3 -p /dev/ttyACM0 firmware/gesturetalk_glove
    ```
-4. In Serial Monitor you should see `IMU ok` and a line like `bend 0.12 0.08 …` four times a second.
+4. Open Serial Monitor at 115200 baud. You should see `IMU ok`, then a line of `flex … acc …` values twice a second. Bend each finger: its number must change by at least 300.
 
 ### Step 4: Make the glove (≈2 h)
 1. Sew a fabric channel (a pocket about 8 mm wide) along the **back** of each finger, from the knuckle to just before the fingertip. Leave the knuckle end open.
 2. Slide each flex sensor in **printed side away from the finger**, with the pins at the knuckle end. The sensor must bend over the middle finger joint.
 3. Strain relief is the most common failure point. Heat-shrink the sensor pins, then tape the wire to the glove 1 cm behind the pins so pulling never reaches the sensor.
 4. Run the wires along the back of the hand to the pod connector. Leave slack loops at the wrist.
-5. Fix the pod to a Velcro wrist strap, not the glove, so the glove can be washed.
+5. Fix the pod to a Velcro wrist strap, not the glove, so the glove can be washed. Mount the motion sensor flat on the back of the hand.
 
-### Step 5: Calibrate on the wearer (≈1 min, redo for each new wearer)
-1. Put the glove on the patient and switch it on. In the app, press **Connect glove** and choose *GestureTalk Glove*.
-2. Press **Calibrate** in the app, or hold the button on the pod for 2 s.
-3. Follow the buzzes: one buzz means *open and relax the hand* (2 s). Two buzzes mean *make a gentle fist* (2 s). A long buzz means done.
-4. Fingers that moved less than 150 mV are marked ignored. Serial Monitor shows which ones.
-5. Calibration is saved on the glove and survives power-off.
+### Step 5: Set up in the app (≈5 min per person)
+1. Put the glove on, switch it on, and tap **Connect glove** in the app.
+2. Go to **Signs → Calibrate glove**. Relax the hand for 3 s, then bend the fingers as far as is comfortable for 3 s. Fingers that don't move are detected and ignored.
+3. Tap **Teach a sign**. Start with **Yes**, **No** and **Help**, then add what this person needs most. Do each sign 4 times. The app warns if an attempt is inconsistent, or too similar to another sign.
+4. Check the self-test score on each sign. Anything under 80% needs more practice or a more distinct movement.
+5. Use **Settings → People → Back up** to save the profile as a file.
 
 ### Step 6: Bedside checklist before relying on it
 - [ ] Each gesture in the table above fires reliably 5 out of 5 times, without false triggers during 2 minutes of rest and normal movement.
@@ -143,25 +134,26 @@ Only ADC1 pins (GPIO 1–10) are used for analog readings. ADC2 gives unreliable
 | Symptom | Fix |
 |---|---|
 | App can't find the glove | It only works in Chrome or Edge. Turn on Bluetooth and location (Android needs it for BLE). Switch the glove off and on again. |
-| A gesture never triggers | Recalibrate with a *gentle* fist, not a hard one. Check Serial Monitor: the bend value should go above 0.6 for "bent" fingers and below 0.35 for "straight" ones. |
-| Random triggers at rest | Recalibrate with the hand truly relaxed. Increase `HOLD_MS` in the firmware. |
-| One finger always reads 0 or 1 | Broken wire or cracked sensor. Check the solder joints at the pins first. |
-| Thumb down says "Yes" | The MPU-6050 is missing or mounted the wrong way. The Y arrow must point toward the thumb. Check for `IMU ok` on boot. |
-| Readings jump when Bluetooth connects | A flex sensor is on an ADC2 pin, or the 100 nF capacitor is missing. |
+| Sensor bars don't move | Check Serial Monitor first. If the values change there, recalibrate in the app. If not, look for a broken wire or a cracked sensor at the pins. |
+| Signs trigger while resting | Recalibrate with the hand truly relaxed. Set **Settings → Sign recognition** to stricter. |
+| A sign is often missed | Add practice (4 more attempts), or set recognition to more lenient. Make it more different from the sign it gets confused with (shown on the Signs screen). |
+| Two signs get mixed up | Change one of them: different fingers, different hand orientation, or add a wrist movement. |
+| Readings jump when Bluetooth connects | A flex sensor is on an ADC2 pin, or a 100 nF capacitor is missing. |
 
 ## 6. Protocol (for developers)
 
 BLE service `6e7a0001-5a1f-4c2b-9d3e-7f1a2b3c4d5e`:
 
-| Characteristic | UUID suffix | Properties | Payload |
+| Characteristic | UUID | Properties | Payload |
 |---|---|---|---|
-| Event | `…0002…` | notify | UTF-8: `YES` `NO` `NEXT` `PREV` `SELECT` `HELP` `CAL_OPEN` `CAL_FIST` `CAL_DONE` |
-| Battery | `…0003…` | read, notify | UTF-8 integer 0–100 |
-| Command | `…0004…` | write | `CAL` (calibrate) · `BUZZ` (test the motor) |
+| Frame | `6e7a0002-…` | notify, 50 Hz | 20 bytes LE: `uint16[5]` flex mV · `int16[3]` accel milli-g · `int8[3]` gyro °/s ÷ 8 · `uint8` (bit 7 button, bits 0–6 sequence) |
+| Battery | `6e7a0003-…` | read, notify | UTF-8 integer 0–100 |
+| Command | `6e7a0004-…` | write | `BUZZ <ms>`: vibrate (the app sends this on every recognised sign) |
 
-The app side lives in `app/lib/glove.ts` and `app/components/GloveConnect.tsx`. Any device that sends these events will work, for example a single big-button switch or a sip-and-puff sensor sending `NEXT`/`SELECT`.
+The app side lives in `app/lib/sensors.ts` (frame format, features), `app/lib/recognizer.ts` (segmentation and matching) and `app/hooks/useGlove.tsx` (Bluetooth). Any hardware that streams this frame format works with the app, for example a different microcontroller or a glove with fewer sensors.
 
 ## 7. Next revision ideas
 - Custom 2-layer PCB (KiCad) to replace the perfboard.
-- Fabric (Velostat/conductive-thread) bend sensors to bring cost below ₹1,000.
-- Deep sleep after 10 minutes of no movement, to extend battery life.
+- Fabric (Velostat / conductive-thread) bend sensors to bring the cost below ₹1,000.
+- Second glove for two-handed signs.
+- Deep sleep after 10 minutes without movement.

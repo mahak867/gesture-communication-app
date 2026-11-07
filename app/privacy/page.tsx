@@ -10,7 +10,7 @@ export default function Privacy() {
         <li>No account, no tracking, no analytics, no advertising.</li>
         <li>Your settings, message history and learned words are stored only in this browser (localStorage). Clearing site data or using “Delete history” removes them.</li>
         <li>Speech is produced by your device’s built-in voice.</li>
-        <li>The camera mode processes video in the browser and never records or uploads it. The gesture model is downloaded once from Google’s public model storage.</li>
+        <li>Sign recognition runs entirely in this browser. Glove data and recorded signs are never uploaded. A backup file is only created when you choose “Back up”.</li>
         <li>The glove connects directly to this device over Bluetooth. Its data never leaves the device.</li>
         <li>AI sentence suggestions are off by default. When turned on, what you type is sent only to the Ollama server configured by whoever runs this app (by default the same computer).</li>
       </ul>

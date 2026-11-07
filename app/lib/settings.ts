@@ -20,6 +20,12 @@ export interface Settings {
   scanMs: number;
   /** Optional local AI sentence suggestions (needs Ollama running on this machine). */
   aiSuggestions: boolean;
+  /** Recognition strictness: 0.6 lenient (tremor, weak movement) .. 1.6 strict (fewer mistakes). */
+  strictness: number;
+  /** Speak the built sentence automatically after this pause (ms). 0 = only on the speak sign/button. */
+  autoSpeakMs: number;
+  /** Add confidently recognised, un-undone signs as new samples, so recognition follows changes over time. */
+  learnFromUse: boolean;
   patientName: string;
 }
 
@@ -36,6 +42,9 @@ export const DEFAULT_SETTINGS: Settings = {
   scanning: false,
   scanMs: 1500,
   aiSuggestions: false,
+  strictness: 1,
+  autoSpeakMs: 0,
+  learnFromUse: true,
   patientName: '',
 };
 
@@ -59,6 +68,9 @@ export function normalizeSettings(raw: unknown): Settings {
     scanning: s.scanning === true,
     scanMs: clamp(s.scanMs, 500, 5000, d.scanMs),
     aiSuggestions: s.aiSuggestions === true,
+    strictness: clamp(s.strictness, 0.6, 1.6, d.strictness),
+    autoSpeakMs: clamp(s.autoSpeakMs, 0, 10000, d.autoSpeakMs),
+    learnFromUse: s.learnFromUse !== false,
     patientName: typeof s.patientName === 'string' ? s.patientName.slice(0, 60) : '',
   };
 }

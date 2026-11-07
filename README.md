@@ -1,42 +1,51 @@
 # GestureTalk
 
-**A free, offline communication system for hospital patients who cannot speak. Its main input is a low-cost sensor glove.**
+**A sensor glove + app that learns the signs of people who cannot speak, and translates them into speech.**
 
-Patients on ventilators, after a stroke, or with throat surgery, ALS or severe weakness often cannot say they are in pain, call a nurse, or answer a doctor. Commercial AAC (augmentative and alternative communication) devices cost ₹80,000 or more. GestureTalk is a sensor glove you can build for about ₹4,000, plus a web app that runs on any phone or tablet.
+For people who have lost their voice through ALS/MND, stroke, cerebral palsy, a tracheostomy or a ventilator. Most of them never learned sign language, and many can't make textbook handshapes. GestureTalk doesn't ask them to. Each person teaches the glove **their own** movements, a few seconds each, and the app speaks for them.
 
 ```
- 🧤 Glove ──BLE──▶ 📱 GestureTalk web app ──▶ 🔊 speech · 🪧 big text for the visitor · 🚨 alarm
- (point / fist /        (works offline,
-  thumb up/down)         nothing uploaded)
+ 🧤 Glove (5 flex + motion, ₹4,000) ──BLE 50 Hz──▶ 📱 GestureTalk (any phone / tablet, offline)
+                                                    │  learns this person's signs from 4 examples
+                                                    ▼
+                                   "Water" · "Turn me over" · "I love you" · 🚨 HELP
+                                   🔊 spoken  ·  🪧 big text for visitors  ·  history
 ```
 
-## What it does
+## Why it's different
 
-| | |
-|---|---|
-| 🧤 **Glove first** | Point = move the highlight, fist = press, hold fist 3 s = HELP, thumb up/down = yes/no. Vibration confirms every gesture. Auto-reconnects. [Build guide →](hardware/glove/README.md) |
-| 👍 **Yes / No / Help always on screen** | ICU research shows yes/no is the most-used exchange. Never more than one action away. |
-| 🙋 **Needs, feelings, conversation boards** | About 30 hospital phrases (suction, reposition, "wait, I'm still typing", "call my family"…). Buttons never move, so the hand learns where they are. |
-| 🤕 **Pain board** | Where → how much, using a 0–10 faces scale. Pain of 6 or more raises the alarm. |
-| ⌨️ **Typing with word prediction** | ABC or QWERTY layout. Learns the words you use. The device keyboard can be used for any language. |
-| 🪧 **Show to visitor** | Full-screen large text, with a *flip* so the person across the bed can read it. |
-| 🚨 **Urgent alarm** | Full-screen red, loud chime and vibration until a carer taps "I'm here". Shows the patient's name. |
-| ♿ **Access options** | On-lift activation (slide off to cancel), dwell/hold activation for tremor, repeat-press filter, button size up to 160%, high contrast, single-switch auto-scanning. |
-| 📷 **Camera backup** | If there's no glove: the same core gestures through the front camera (MediaPipe, processed on the device). |
-| 🌐 **English + हिन्दी** | Every built-in phrase in both languages, using the device's own voices. |
-| 🔒 **Private and offline** | No account, no analytics. Everything is stored on the device. Installable as an app (PWA) and works without internet. |
-| ✨ **Optional local AI** | Sentence completion through a local [Ollama](https://ollama.com) model you run yourself. Off by default. |
+Sign-language gloves have been built many times: [SignAloud](https://www.kqed.org/futureofyou/165394/invention-translates-sign-language-into-speech-some-in-deaf-community-unimpressed), [SignSpeak](https://arxiv.org/html/2407.12020v2), and dozens of student ESP32/Arduino projects. They almost all do the same thing: recognise the ASL alphabet or a fixed word list, trained on able-bodied signers. They were criticised for being built *for* users rather than *with* them, and they don't help the people who need a voice most.
 
-## Design decisions (and why)
+| | Typical sign glove | **GestureTalk** |
+|---|---|---|
+| Who it's for | People fluent in a sign language | **Anyone who can move a hand a little** — ALS, stroke, CP, ICU |
+| Vocabulary | Fixed alphabet / word list | **The person's own signs**, taught in seconds, any language |
+| Limited movement | Fails | **Calibration detects fingers that don't move** and works with what's left |
+| Changing ability (ALS) | Retrain from scratch | **Learns from use.** New practice replaces old, automatically |
+| Wrong guesses | Always outputs something | **Rejects unclear signs**, shows confidence, one-tap undo |
+| Quality check | None | **Self-test per sign** and warnings when two signs are too alike |
+| Emergencies | — | **Help sign → full-screen alarm** until a carer responds |
+| Without the glove | Nothing | Touch boards, pain scale, typing, switch scanning |
+| Try it | Build hardware first | **Demo glove** in the app, no hardware needed |
+| Privacy / cost | Often cloud, ₹₹₹ | **Offline, nothing uploaded, ~₹4,000 open hardware** |
 
-These come from open-source AAC projects ([Cboard](https://www.cboard.io/), [AsTeRICS Grid](https://github.com/asterics/AsTeRICS-Grid)), research on ICU communication, and the problems with the previous version of this app:
+## How recognition works
 
-- **Few, robust gestures instead of fingerspelling.** Weak, sedated or trembling patients can't fingerspell reliably, and a misread "yes" in a hospital is dangerous. Each gesture must be held steady and fires only once.
-- **Calibration adapts to the person.** Fingers that can't move are ignored rather than blocking gestures.
-- **Fixed button positions** (motor planning), large targets, icon + word on every button. Colour is never the only signal.
-- **Speed for common messages:** a phrase speaks with one tap. Typing is there for everything else.
-- **Partner-facing display:** visitors often can't hear a phone speaker on a busy ward.
-- **No false promises:** it isn't a medical device and doesn't replace the nurse-call bell.
+1. **Calibration** records the relaxed hand and the fullest comfortable bend, per finger.
+2. **Segmentation** finds each sign in the 50 Hz stream: the hand leaves rest, then either holds a shape or returns to rest. Signal smoothing keeps tremor from looking like movement.
+3. **Matching** compares the sign against this person's recorded examples using dynamic time warping (nearest neighbour), across finger bend, hand orientation and motion.
+4. **Rejection**: each sign has its own acceptance limit, based on how consistent the person's own examples are. Anything outside every limit is "not recognised", never a guess.
+
+All of this is plain TypeScript in [`app/lib/recognizer.ts`](app/lib/recognizer.ts), runs in the browser in a few milliseconds, and is unit-tested end to end with the demo glove.
+
+## Features
+
+- **Translate**: live finger sensors, the sentence being signed (large), confidence for each sign, speak / show / undo / clear.
+- **Signs**: suggested starter vocabulary (Yes, No, Help, pain, water…), your own signs, action signs (speak, delete, clear, emergency), self-test scores.
+- **People**: several patients per device, each with their own calibration and signs. Backup and restore as a file.
+- **Board**: touch phrase boards (needs, feelings, conversation), pain scale, keyboard with word prediction. English and हिन्दी.
+- **Access options**: dwell or press-on-lift activation, repeat-press filter, large buttons, high contrast, switch scanning.
+- **Works offline** as an installable app. No account, no analytics.
 
 ## Run it
 
@@ -46,32 +55,29 @@ npm install
 ```bash
 npm run dev
 ```
-Open http://localhost:3000. Use Chrome or Edge for the glove (they support Web Bluetooth).
+Open http://localhost:3000, tap **Connect glove → Try the demo glove**, then go to **Signs** to calibrate and teach.
 
 ```bash
 npm test
 ```
-```bash
-npm run build
+
+Use Chrome or Edge for the real glove (they support Web Bluetooth).
+
+## Build the glove
+
+[`hardware/glove/`](hardware/glove/README.md) has the parts list (~₹4,000), schematic, wiring table, step-by-step build workflow, firmware (XIAO ESP32-S3), 3D-printable pod and a bedside checklist.
+
+## Layout
+
+```
+app/lib/        sensors (frame format, features) · recognizer (segment + DTW) · profiles · simulator (demo glove) · vocab
+app/hooks/      useGlove (BLE / demo) · useProfiles · useTranslator · useSegments · useApp
+app/components/ TranslateView · SignsView · RecordSign · Calibrate · BoardView · GloveBar · HandViz · …
+hardware/glove/ build guide · schematic.svg · firmware · enclosure.scad
 ```
 
-Optional AI suggestions: install Ollama, run `ollama pull gemma3`, copy `.env.example` to `.env.local`, then turn it on in **Settings**.
+## Status
 
-## Project layout
+A working prototype. It is **not a medical device** and does not replace nurse-call systems. Next steps: field testing with ALS and stroke patients and their speech therapists, two-glove signing, and an opt-in shared dataset of accessible signs.
 
-```
-app/
-  page.tsx               app shell: glove bar, quick answers, message, boards
-  components/            Key (accessible button), GloveConnect, PhraseBoard, PainBoard,
-                         Keyboard, CameraGestures, SettingsPanel, Overlays (alarm, partner view, history)
-  hooks/useApp.tsx       shared state: settings, message, history, speech, alarm
-  hooks/useScanner.ts    switch/glove scanning
-  lib/                   pure, unit-tested logic: vocab, prediction, settings, glove protocol, gestures
-  api/suggest/route.ts   optional local-AI sentence suggestions
-hardware/glove/          parts list, schematic, build workflow, firmware, enclosure
-public/sw.js             offline cache
-```
-
-## Licence
-
-MIT. See [LICENSE](LICENSE).
+MIT licence.
