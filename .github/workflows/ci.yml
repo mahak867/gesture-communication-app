@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  check:
+  app:
+    name: App — types, lint, unit tests, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,11 +16,36 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Type check
-        run: npx tsc --noEmit
-      - name: Lint
-        run: npm run lint
-      - name: Unit tests
-        run: npm test
-      - name: Build
-        run: npm run build
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  firmware:
+    name: Firmware — host unit tests, golden vectors, sketch compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -C hardware/glove/firmware/test
+      - name: Golden vectors are up to date
+        run: git diff --exit-code hardware/glove/firmware/test/vectors.json
+
+  e2e:
+    name: End-to-end (Chromium + demo glove)
+    runs-on: ubuntu-latest
+    needs: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm install --no-save playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Start app
+        run: |
+          npm start &
+          npx --yes wait-on@8.0.3 http://localhost:3000
+      - run: npm run e2e

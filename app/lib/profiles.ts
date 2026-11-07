@@ -6,7 +6,7 @@ import { DEFAULT_CALIBRATION, type Calibration } from './sensors';
 import type { Seq } from './recognizer';
 import type { Lang } from './vocab';
 
-export type SignAction = 'say' | 'speak' | 'delete' | 'clear' | 'help';
+export type SignAction = 'say' | 'speak' | 'delete' | 'clear' | 'help' | 'next' | 'select';
 
 export interface Sign {
   id: string;
@@ -78,7 +78,7 @@ function isSign(v: unknown): v is Sign {
   const s = v as Sign;
   return (
     !!s && typeof s.id === 'string' && typeof s.output === 'string' && s.output.length <= 200 &&
-    ['say', 'speak', 'delete', 'clear', 'help'].includes(s.action) &&
+    ['say', 'speak', 'delete', 'clear', 'help', 'next', 'select'].includes(s.action) &&
     typeof s.instant === 'boolean' && typeof s.urgent === 'boolean' &&
     Array.isArray(s.samples) && s.samples.length <= 20 && s.samples.every(isSeq)
   );

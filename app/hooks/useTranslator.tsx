@@ -7,6 +7,8 @@ import { useProfiles } from './useProfiles';
 import { useSegments, type LiveRef } from './useSegments';
 import { classify, resample, type Seq } from '../lib/recognizer';
 import { sentenceText, type Sign, type Token } from '../lib/profiles';
+import { decide, shouldLearn } from '../lib/translate';
+import { advanceScan } from './useScanner';
 
 export interface Recognition {
   at: number;
@@ -33,9 +35,9 @@ const LEARN_MIN_CONFIDENCE = 0.55;
 const LEARN_DELAY_MS = 5000;
 
 export function TranslatorProvider({ children }: { children: ReactNode }) {
-  const { settings, say, setMessage } = useApp();
+  const { settings, say, setMessage, alarm, dismissAlarm } = useApp();
   const { active, addSample } = useProfiles();
-  const { buzz, status } = useGlove();
+  const { buzz, status, subscribe } = useGlove();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [last, setLast] = useState<Recognition | null>(null);
   const [paused, setPaused] = useState(false);
@@ -89,7 +91,7 @@ export function TranslatorProvider({ children }: { children: ReactNode }) {
 
       // Learn from use: if nobody undoes this within a few seconds, keep it as a new sample.
       cancelLearn();
-      if (settings.learnFromUse && m.confidence >= LEARN_MIN_CONFIDENCE && sign.action === 'say') {
+      if (shouldLearn(sign, m.confidence, settings.learnFromUse, LEARN_MIN_CONFIDENCE)) {
         const sample = resample(seg);
         pendingLearn.current = {
           signId: sign.id,
@@ -102,29 +104,40 @@ export function TranslatorProvider({ children }: { children: ReactNode }) {
       }
 
       if (autoTimer.current) clearTimeout(autoTimer.current);
-      switch (sign.action) {
-        case 'speak':
-          speakSentence();
-          return;
-        case 'delete':
-          setTokens((t) => t.slice(0, -1));
-          return;
-        case 'clear':
-          setTokens([]);
-          return;
-        case 'help':
-          say(sign.output, { urgent: true });
-          return;
-        case 'say':
-          if (sign.instant) say(sign.output, { urgent: sign.urgent });
-          else setTokens((t) => [...t, { text: sign.output, signId: sign.id }]);
+      const d = decide(sign, tokensRef.current);
+      tokensRef.current = d.tokens;
+      setTokens(d.tokens);
+      for (const e of d.effects) {
+        if (e.kind === 'say') say(e.text, { urgent: e.urgent });
+        else if (e.kind === 'scan') advanceScan(e.direction);
+        else if (e.kind === 'select') {
+          const el = document.activeElement as HTMLElement | null;
+          if (el?.hasAttribute('data-scan')) el.click();
+          else advanceScan(1);
+        }
       }
-      if (settings.autoSpeakMs > 0 && !sign.instant) autoTimer.current = setTimeout(speakSentence, settings.autoSpeakMs);
+      if (d.armAutoSpeak && settings.autoSpeakMs > 0) autoTimer.current = setTimeout(speakSentence, settings.autoSpeakMs);
     },
     [paused, active, settings.strictness, settings.learnFromUse, settings.autoSpeakMs, buzz, addSample, say, speakSentence],
   );
 
   const live = useSegments(active, onSegment, status === 'connected');
+  // Carer button on the glove pod: stops an alarm, otherwise speaks the sentence.
+  const buttonAction = useRef<() => void>(() => {});
+  useEffect(() => {
+    buttonAction.current = () => (alarm ? dismissAlarm() : speakSentence());
+  }, [alarm, dismissAlarm, speakSentence]);
+  useEffect(() => {
+    let wasDown = false;
+    let downAt = 0;
+    return subscribe((f) => {
+      if (f.button && !wasDown) downAt = performance.now();
+      // Act on release after a deliberate press (debounces contact bounce and brushes).
+      if (!f.button && wasDown && performance.now() - downAt > 60) buttonAction.current();
+      wasDown = f.button;
+    });
+  }, [subscribe]);
+
 
   useEffect(() => () => {
     cancelLearn();

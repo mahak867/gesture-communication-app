@@ -7,6 +7,7 @@ import { MessageBar } from './MessageBar';
 import { PhraseBoard } from './PhraseBoard';
 import { PainBoard } from './PainBoard';
 import { Keyboard } from './Keyboard';
+import { DemoPad } from './DemoPad';
 
 type Sub = 'needs' | 'feel' | 'talk' | 'pain' | 'type';
 
@@ -48,6 +49,7 @@ export function BoardView({ onShow }: { onShow: () => void }) {
         {sub === 'pain' && <PainBoard />}
         {sub === 'type' && <Keyboard />}
       </div>
+      <DemoPad />
     </div>
   );
 }

@@ -60,6 +60,12 @@ export function activeFingers(cal: Calibration): boolean[] {
   return cal.relaxed.map((r, i) => Math.abs(cal.bent[i] - r) >= MIN_RANGE_MV);
 }
 
+/** A divider pinned near 0 V or 3.3 V means an open or shorted sensor (matches the firmware self-test). */
+export function sensorFaults(cal: Calibration): boolean[] {
+  const bad = (mv: number) => mv < 60 || mv > 3240;
+  return cal.relaxed.map((r, i) => bad(r) && bad(cal.bent[i]));
+}
+
 /**
  * Feature vector (9 values):
  *  0..4  bend per finger, 0 = relaxed, 1 = full bend (inactive fingers → 0)

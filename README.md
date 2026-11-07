@@ -7,7 +7,7 @@
 **For people who have lost their voice to ALS/MND, stroke, cerebral palsy, a tracheostomy or a ventilator.**
 No sign language needed. Teach the glove a movement you *can* make, and it says the words you choose.
 
-[![Tests](https://img.shields.io/badge/tests-29%20passing-17803d?style=flat-square)](#testing)
+[![Tests](https://img.shields.io/badge/tests-46%20unit%20%2B%2015%20e2e-17803d?style=flat-square)](#testing)
 [![Recognition](https://img.shields.io/badge/wrong--sign%20rate-0%25%20(simulated)-2457c5?style=flat-square)](#performance)
 [![Hardware](https://img.shields.io/badge/glove-~%E2%82%B94%2C000%20open%20hardware-c2321f?style=flat-square)](hardware/glove/README.md)
 [![Offline](https://img.shields.io/badge/works-offline-555?style=flat-square)](#privacy-and-safety)
@@ -59,6 +59,8 @@ GestureTalk turns **whatever hand movement a person can still make** into speech
 3. **Talk**: sign, and the app shows the words in large text, speaks them aloud, and raises an alarm for emergencies.
 
 It runs on any phone or tablet browser, works offline, and the glove costs about ₹4,000 in parts.
+
+The glove can also drive the whole app hands-free: *next* and *select* signs move a highlight through the touch phrase boards and press buttons. A carer button on the glove's wrist pod stops an alarm or speaks the current sentence.
 
 ## How it compares
 
@@ -211,6 +213,7 @@ Optional: local AI sentence suggestions on the keyboard need [Ollama](https://ol
 ```
 app/
 ├── lib/                    Pure, unit-tested logic
+│   ├── translate.ts        What a recognised sign does (words, actions, navigation)
 │   ├── sensors.ts          BLE frame format, calibration, feature extraction
 │   ├── recognizer.ts       Segmenter, DTW, classification, self-test
 │   ├── profiles.ts         People, signs, starter vocabulary, validation
@@ -226,6 +229,8 @@ app/
 └── api/suggest/            Optional local-AI sentence suggestions
 hardware/glove/             Build guide, schematic, firmware, enclosure
 scripts/benchmark.bench.ts  Recognition benchmark → docs/benchmark.json
+scripts/e2e.cjs             End-to-end browser test with the demo glove
+hardware/glove/firmware/test/  Firmware host tests, stub headers, golden vectors
 docs/images/                Screenshots
 ```
 
@@ -235,13 +240,25 @@ docs/images/                Screenshots
 npm test
 ```
 ```bash
-npm run benchmark
+npm run test:firmware
 ```
 ```bash
-npm run lint
+npm run e2e
+```
+```bash
+npm run benchmark
 ```
 
-There are 29 unit tests. They cover the BLE frame round-trip, segmentation (one segment per sign, silence at rest), few-shot recognition of every taught sign, thumb up vs thumb down by orientation, rejection of untaught signs, leave-one-out accuracy, calibration with paralysed fingers, profile validation for imported files, word prediction (including Hindi), and settings. CI runs type-checking, lint, tests and the production build on every push.
+| Suite | What it proves |
+|---|---|
+| **46 unit tests** (Vitest) | Segmentation (one segment per sign, silence at rest), few-shot recognition of every taught sign, thumb up vs down by orientation, rejection of untaught signs, leave-one-out accuracy, sentence and action logic, learn-from-use rules, calibration with paralysed or broken fingers, profile validation for imported files, word prediction (including Hindi) |
+| **Firmware host tests** (g++) | Frame packing, sensor unit conversions, battery %, `BUZZ` command parsing, sensor-fault detection. The full sketch is also compiled with `-Wall -Werror` against stand-in Arduino/BLE headers |
+| **Firmware ↔ app compatibility** | Byte sequences produced by the firmware's own C++ packing code must decode identically in the app's TypeScript, and re-encode byte-for-byte |
+| **15 end-to-end checks** (Chromium) | The real app with the demo glove: calibrate → teach 5 signs → translate → reject an unknown sign → emergency alarm and acknowledge → history → hands-free board navigation, with zero console errors |
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all four on every push: type-check, lint, unit tests, build, firmware tests (including a check that the reference vectors are up to date), and the end-to-end run.
+
+> The firmware has been compiled against stand-in headers, not yet with the real ESP32 toolchain. Build it once in the Arduino IDE before first use (see the hardware guide).
 
 ## Privacy and safety
 

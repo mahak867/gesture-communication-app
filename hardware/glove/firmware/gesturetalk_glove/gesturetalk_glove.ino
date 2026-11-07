@@ -19,6 +19,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include "glove_frame.h"
 
 // ───────── Pins (XIAO ESP32S3). Flex sensors on ADC1 only — ADC2 is unreliable with BLE. ─────────
 static const uint8_t FLEX_PIN[5] = {1, 2, 3, 4, 7};  // D0 thumb, D1 index, D2 middle, D3 ring, D8 pinky
@@ -75,16 +76,12 @@ void readImu(int16_t acc_mg[3], int8_t gyro_div8[3]) {
   if (Wire.requestFrom(MPU_ADDR, (uint8_t)14) != 14) return;
   int16_t raw[7];
   for (int i = 0; i < 7; i++) raw[i] = (Wire.read() << 8) | Wire.read();
-  for (int i = 0; i < 3; i++) acc_mg[i] = (int32_t)raw[i] * 1000 / 16384;       // ±2 g
-  for (int i = 0; i < 3; i++) {
-    int32_t dps = (int32_t)raw[4 + i] * 10 / 655;                                // ±500 °/s → 65.5 LSB/°/s
-    gyro_div8[i] = (int8_t)constrain(dps / 8, -128, 127);
-  }
+  for (int i = 0; i < 3; i++) acc_mg[i] = glove::accelRawToMg(raw[i]);      // ±2 g
+  for (int i = 0; i < 3; i++) gyro_div8[i] = glove::gyroRawToDiv8(raw[4 + i]); // ±500 °/s
 }
 
 int batteryPercent() {
-  int mv = analogReadMilliVolts(PIN_BATT) * 2;
-  return constrain(map(mv, 3300, 4150, 0, 100), 0, 100);
+  return glove::batteryPercentFromMv(analogReadMilliVolts(PIN_BATT) * 2);  // undo the 1:2 divider
 }
 
 void publishBattery() {
@@ -106,13 +103,8 @@ class ServerCB : public BLEServerCallbacks {
 
 class CommandCB : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *c) override {
-    String v = String(c->getValue().c_str());
-    v.trim();
-    v.toUpperCase();
-    if (v.startsWith("BUZZ")) {
-      int ms = v.length() > 5 ? v.substring(5).toInt() : 80;
-      buzzMs = constrain(ms, 10, 1000);
-    }
+    uint16_t ms = glove::parseBuzzMs(c->getValue().c_str());
+    if (ms) buzzMs = ms;
   }
 };
 
@@ -152,6 +144,20 @@ void setup() {
   Serial.printf("GestureTalk Glove — IMU %s\n", imuOk ? "ok" : "MISSING");
   setupBle();
   publishBattery();
+
+  // Self-test: a sensor pinned at a rail is unplugged or broken. Three buzzes tell the carer.
+  bool fault = false;
+  for (int i = 0; i < 5; i++) {
+    uint16_t mv = readFlex(FLEX_PIN[i]);
+    if (glove::flexLooksDisconnected(mv)) {
+      fault = true;
+      Serial.printf("WARNING: flex sensor %d reads %u mV - check wiring\n", i, mv);
+    }
+  }
+  for (int i = 0; i < (fault ? 3 : 1); i++) {
+    digitalWrite(PIN_MOTOR, HIGH); delay(fault ? 250 : 80);
+    digitalWrite(PIN_MOTOR, LOW); delay(150);
+  }
 }
 
 void loop() {
@@ -164,28 +170,28 @@ void loop() {
   if (buzzMs) { digitalWrite(PIN_MOTOR, HIGH); buzzUntil = nowMs + buzzMs; buzzMs = 0; }
   if (buzzUntil && (int32_t)(nowMs - buzzUntil) >= 0) { digitalWrite(PIN_MOTOR, LOW); buzzUntil = 0; }
 
-  if (nowMs - lastBattery > 60000) { lastBattery = nowMs; publishBattery(); }
+  if (nowMs - lastBattery > 60000) {
+    lastBattery = nowMs;
+    publishBattery();
+    // Low battery: two long buzzes every 5 minutes so the carer knows to charge it.
+    static uint32_t lastLowWarn = 0;
+    if (batteryPercent() < 15 && (lastLowWarn == 0 || nowMs - lastLowWarn > 300000)) {
+      lastLowWarn = nowMs;
+      buzzMs = 600;
+    }
+  }
 
   if ((int32_t)(micros() - nextFrame) < 0) return;
   nextFrame += FRAME_INTERVAL_US;
 
-  uint8_t pkt[20];
   uint16_t flex[5];
-  for (int i = 0; i < 5; i++) {
-    flex[i] = readFlex(FLEX_PIN[i]);
-    pkt[i * 2] = flex[i] & 0xFF;
-    pkt[i * 2 + 1] = flex[i] >> 8;
-  }
+  for (int i = 0; i < 5; i++) flex[i] = readFlex(FLEX_PIN[i]);
   int16_t acc[3];
   int8_t gyro[3];
   readImu(acc, gyro);
-  for (int i = 0; i < 3; i++) {
-    pkt[10 + i * 2] = acc[i] & 0xFF;
-    pkt[11 + i * 2] = (uint16_t)acc[i] >> 8;
-    pkt[16 + i] = (uint8_t)gyro[i];
-  }
   bool button = digitalRead(PIN_BUTTON) == LOW;
-  pkt[19] = (button ? 0x80 : 0) | (seq++ & 0x7F);
+  uint8_t pkt[glove::FRAME_BYTES];
+  glove::packFrame(pkt, flex, acc, gyro, button, seq++);
 
   if (connected) {
     frameChar->setValue(pkt, sizeof(pkt));

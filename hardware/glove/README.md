@@ -96,7 +96,8 @@ Only ADC1 pins (GPIO 1–10) are used for analog readings. ADC2 gives unreliable
    ```bash
    arduino-cli upload --fqbn esp32:esp32:XIAO_ESP32S3 -p /dev/ttyACM0 firmware/gesturetalk_glove
    ```
-4. Open Serial Monitor at 115200 baud. You should see `IMU ok`, then a line of `flex … acc …` values twice a second. Bend each finger: its number must change by at least 300.
+4. At power-on the glove buzzes **once** if all five sensors read normally, or **three times** if one is unplugged or broken (Serial Monitor names which one). Below 15% battery it gives two long buzzes every 5 minutes.
+5. Open Serial Monitor at 115200 baud. You should see `IMU ok`, then a line of `flex … acc …` values twice a second. Bend each finger: its number must change by at least 300.
 
 ### Step 4: Make the glove (≈2 h)
 1. Sew a fabric channel (a pocket about 8 mm wide) along the **back** of each finger, from the knuckle to just before the fingertip. Leave the knuckle end open.
@@ -151,6 +152,14 @@ BLE service `6e7a0001-5a1f-4c2b-9d3e-7f1a2b3c4d5e`:
 | Command | `6e7a0004-…` | write | `BUZZ <ms>`: vibrate (the app sends this on every recognised sign) |
 
 The app side lives in `app/lib/sensors.ts` (frame format, features), `app/lib/recognizer.ts` (segmentation and matching) and `app/hooks/useGlove.tsx` (Bluetooth). Any hardware that streams this frame format works with the app, for example a different microcontroller or a glove with fewer sensors.
+
+### Testing the firmware without hardware
+
+```bash
+make -C hardware/glove/firmware/test
+```
+
+This runs the unit tests for `glove_frame.h` (frame packing, unit conversions, battery %, command parsing, fault detection) and regenerates `vectors.json`, which the app's tests decode byte-for-byte. It also compiles the whole sketch with warnings-as-errors against stand-in Arduino/BLE headers. Those headers are a stand-in, so the real ESP32 build in Step 3 is still required.
 
 ## 7. Next revision ideas
 - Custom 2-layer PCB (KiCad) to replace the perfboard.

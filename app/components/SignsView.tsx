@@ -15,6 +15,8 @@ const ACTION_LABEL: Record<SignAction, string> = {
   delete: 'Delete last word',
   clear: 'Clear sentence',
   help: 'Emergency — alarm',
+  next: 'Move highlight (control the boards)',
+  select: 'Press highlighted button',
 };
 
 export function SignsView() {

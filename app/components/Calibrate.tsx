@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlove } from '../hooks/useGlove';
 import { useProfiles } from '../hooks/useProfiles';
-import { activeFingers, features, FINGERS, type Calibration, type Frame } from '../lib/sensors';
+import { activeFingers, features, FINGERS, sensorFaults, type Calibration, type Frame } from '../lib/sensors';
 import { SHAPES } from '../lib/simulator';
 import { Sheet } from './Sheet';
 
@@ -63,6 +63,7 @@ export function Calibrate({ onClose }: { onClose: () => void }) {
   };
 
   const act = result ? activeFingers(result) : [];
+  const faults = result ? sensorFaults(result) : [];
 
   return (
     <Sheet title={`Calibrate glove${active ? ` for ${active.name}` : ''}`} onClose={onClose}>
@@ -104,6 +105,11 @@ export function Calibrate({ onClose }: { onClose: () => void }) {
               ? 'All five fingers move well.'
               : `${act.filter(Boolean).length} of 5 fingers move enough to use. The others are ignored — signs will use orientation and the fingers that move.`}
           </p>
+          {faults.some(Boolean) && (
+            <p role="alert" className="rounded-xl bg-[var(--tint-pain)] p-3">
+              ⚠️ The {FINGERS.filter((_, i) => faults[i]).join(', ')} sensor reads at its limit — it may be unplugged or broken. Check the cable and solder joints.
+            </p>
+          )}
           {act.filter(Boolean).length === 0 && (
             <p role="alert" className="rounded-xl bg-[var(--tint-pain)] p-3">No finger movement detected. Check the glove fit and sensor wiring, then try again. Wrist movements alone can still be taught as signs.</p>
           )}

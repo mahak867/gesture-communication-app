@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "benchmark": "vitest run --config vitest.bench.config.ts"
+    "benchmark": "vitest run --config vitest.bench.config.ts",
+    "e2e": "node scripts/e2e.cjs",
+    "test:firmware": "make -C hardware/glove/firmware/test"
   },
   "dependencies": {
     "next": "^16.2.4",
