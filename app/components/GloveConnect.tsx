@@ -25,7 +25,7 @@ export function GloveBar() {
   const [battery, setBattery] = useState<number | null>(null);
   const [last, setLast] = useState<GloveEvent | null>(null);
   const [note, setNote] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
+  const [open, setOpen] = useState(false);
   const device = useRef<BluetoothDevice | null>(null);
   const command = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const handler = useRef<(e: GloveEvent) => void>(() => {});
@@ -86,6 +86,7 @@ export function GloveBar() {
     command.current = await svc.getCharacteristic(GLOVE_COMMAND);
     setStatus('connected');
     setNote('');
+    setOpen(false);
     advanceScan(1);
   };
 
@@ -126,58 +127,84 @@ export function GloveBar() {
   };
 
   const send = (cmd: 'CAL' | 'BUZZ') => command.current?.writeValue(new TextEncoder().encode(cmd)).catch(() => {});
-  const btn = 'rounded-xl border-2 border-[var(--line)] bg-[var(--panel)] px-3 py-2 font-semibold';
+
+  const dot = status === 'connected' ? 'dot dot--on' : status === 'connecting' ? 'dot dot--busy' : 'dot';
+  const label =
+    status === 'connected' ? `Glove${battery != null ? ` · ${battery}%` : ''}` :
+    status === 'connecting' ? 'Connecting…' : 'Connect glove';
 
   return (
-    <section aria-label="Glove" className="rounded-2xl border-2 border-[var(--line)] bg-[var(--panel)] p-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[1.1em] font-bold">🧤 Glove</span>
-        {status === 'connected' ? (
-          <>
-            <span className="rounded-lg bg-[var(--yes)] px-2 py-1 text-[0.9em] text-white">Connected</span>
-            {battery != null && (
-              <span className={`text-[0.9em] ${battery < 20 ? 'font-bold text-[var(--urgent)]' : 'text-[var(--muted)]'}`}>
-                🔋 {battery}%
-              </span>
-            )}
-            {last && <span aria-live="polite" className="text-[0.9em] text-[var(--muted)]">last: {ICON[last] ?? ''} {last}</span>}
-            <span className="ml-auto flex gap-2">
-              <button type="button" className={btn} onClick={() => send('CAL')}>Calibrate</button>
-              <button type="button" className={btn} onClick={() => send('BUZZ')}>Buzz</button>
-              <button type="button" className={btn} onClick={disconnect}>Disconnect</button>
-            </span>
-          </>
-        ) : supported ? (
-          <>
-            <button
-              type="button"
-              disabled={status === 'connecting'}
-              onClick={connect}
-              className="rounded-xl bg-[var(--accent)] px-4 py-2 font-bold text-white disabled:opacity-60"
-            >
-              {status === 'connecting' ? 'Connecting…' : 'Connect glove'}
-            </button>
-            <span className="text-[0.9em] text-[var(--muted)]">Touch, camera and switch input also work.</span>
-          </>
-        ) : (
-          <span className="text-[0.9em] text-[var(--muted)]">
-            This browser has no Bluetooth. Use Chrome or Edge on Android, Windows, macOS or ChromeOS for the glove.
-          </span>
-        )}
-        <button type="button" className={`${btn} ${status === 'connected' ? '' : 'ml-auto'}`} aria-expanded={showHelp} onClick={() => setShowHelp((s) => !s)}>
-          ? Gestures
-        </button>
-      </div>
-      {note && <p role="status" className="mt-2">{note}</p>}
-      {showHelp && (
-        <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-          {GLOVE_GESTURES.map((g) => (
-            <li key={g.event} className="rounded-lg bg-[var(--bg)] px-3 py-2">
-              <b>{ICON[g.event]} {g.event}</b> — {g.how}
-            </li>
-          ))}
-        </ul>
+    <>
+      <button
+        type="button"
+        className={`pill ${status === 'connected' ? '' : 'pill--cta'}`}
+        aria-haspopup="dialog"
+        aria-label={`Glove: ${status}${battery != null ? `, battery ${battery} percent` : ''}`}
+        onClick={() => setOpen(true)}
+      >
+        <span aria-hidden>🧤</span>
+        <span className={dot} aria-hidden />
+        <span className="whitespace-nowrap">{label}</span>
+        {battery != null && battery < 20 && <span className="text-[var(--urgent)]">🔋!</span>}
+      </button>
+      {status === 'connected' && last && (
+        <span aria-live="polite" className="fade-in text-[0.9em] font-semibold text-[var(--muted)]">
+          {ICON[last] ?? ''}
+        </span>
       )}
-    </section>
+      {note && !open && (
+        <p role="status" className="fade-in basis-full text-[0.9em] text-[var(--muted)]">{note}</p>
+      )}
+
+      {open && (
+        <div className="overlay fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center sm:justify-center" onClick={() => setOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Glove"
+            className="sheet card max-h-[85dvh] w-full overflow-y-auto rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-lg sm:rounded-b-[22px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div aria-hidden className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[var(--line)] sm:hidden" />
+            <div className="mb-4 flex items-center gap-3">
+              <span className="text-[2em]" aria-hidden>🧤</span>
+              <div className="flex-1">
+                <h2 className="text-[1.25em] font-bold">GestureTalk Glove</h2>
+                <p className="text-[0.9em] text-[var(--muted)]">
+                  {status === 'connected' ? `Connected${battery != null ? ` · battery ${battery}%` : ''}` :
+                    supported ? 'Not connected' : 'This browser has no Bluetooth — use Chrome or Edge.'}
+                </p>
+              </div>
+            </div>
+            {note && <p role="status" className="mb-3 rounded-xl bg-[var(--surface-2)] p-3">{note}</p>}
+
+            <div className="mb-5 grid grid-cols-3 gap-2">
+              {status === 'connected' ? (
+                <>
+                  <button type="button" data-scan className="key py-3" onClick={() => send('CAL')}>Calibrate</button>
+                  <button type="button" data-scan className="key py-3" onClick={() => send('BUZZ')}>Test buzz</button>
+                  <button type="button" data-scan className="key py-3" onClick={disconnect}>Disconnect</button>
+                </>
+              ) : (
+                <button type="button" data-scan disabled={!supported || status === 'connecting'} className="key key--accent col-span-3 py-4" onClick={connect}>
+                  {status === 'connecting' ? 'Connecting…' : 'Connect glove'}
+                </button>
+              )}
+            </div>
+
+            <h3 className="mb-2 font-bold">Gestures</h3>
+            <ul className="grid gap-2">
+              {GLOVE_GESTURES.map((g) => (
+                <li key={g.event} className="flex items-center gap-3 rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
+                  <span aria-hidden className="w-10 text-center text-[1.4em]">{ICON[g.event]}</span>
+                  <span className="text-[0.95em]"><b>{g.event}</b><br />{g.how}</span>
+                </li>
+              ))}
+            </ul>
+            <button type="button" data-scan className="key mt-5 w-full py-3" onClick={() => setOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

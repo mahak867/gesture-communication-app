@@ -8,7 +8,7 @@ import type { Activation } from '../lib/settings';
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 rounded-xl bg-[var(--panel)] p-3">
+    <label className="card flex flex-col gap-1.5 p-4">
       <span className="font-semibold">{label}</span>
       {hint && <span className="text-[0.85em] text-[var(--muted)]">{hint}</span>}
       {children}
@@ -16,7 +16,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
-const input = 'rounded-lg border-2 border-[var(--line)] bg-[var(--bg)] p-2 text-[var(--fg)]';
+const input = 'min-h-12 rounded-xl border-[1.5px] border-[var(--line)] bg-[var(--surface-2)] px-3 text-[var(--fg)]';
 
 export function SettingsPanel() {
   const { settings: s, setSettings } = useApp();
@@ -53,11 +53,11 @@ export function SettingsPanel() {
       </Row>
 
       <Row label={`Speaking speed: ${s.rate.toFixed(1)}×`}>
-        <input type="range" min={0.5} max={1.5} step={0.1} value={s.rate} onChange={(e) => setSettings({ rate: +e.target.value })} />
+        <input type="range" className="h-10 accent-[var(--accent)]" min={0.5} max={1.5} step={0.1} value={s.rate} onChange={(e) => setSettings({ rate: +e.target.value })} />
       </Row>
 
       <Row label={`Button size: ${Math.round(s.scale * 100)}%`} hint="Bigger buttons are easier to hit with a weak or shaky hand.">
-        <input type="range" min={0.8} max={1.6} step={0.1} value={s.scale} onChange={(e) => setSettings({ scale: +e.target.value })} />
+        <input type="range" className="h-10 accent-[var(--accent)]" min={0.8} max={1.6} step={0.1} value={s.scale} onChange={(e) => setSettings({ scale: +e.target.value })} />
       </Row>
 
       <Row label="How buttons are pressed">
@@ -70,12 +70,12 @@ export function SettingsPanel() {
 
       {s.activation === 'dwell' && (
         <Row label={`Hold time: ${(s.dwellMs / 1000).toFixed(1)} s`}>
-          <input type="range" min={300} max={3000} step={100} value={s.dwellMs} onChange={(e) => setSettings({ dwellMs: +e.target.value })} />
+          <input type="range" className="h-10 accent-[var(--accent)]" min={300} max={3000} step={100} value={s.dwellMs} onChange={(e) => setSettings({ dwellMs: +e.target.value })} />
         </Row>
       )}
 
       <Row label={`Ignore repeat presses for: ${(s.debounceMs / 1000).toFixed(2)} s`} hint="Stops accidental double presses.">
-        <input type="range" min={0} max={2000} step={50} value={s.debounceMs} onChange={(e) => setSettings({ debounceMs: +e.target.value })} />
+        <input type="range" className="h-10 accent-[var(--accent)]" min={0} max={2000} step={50} value={s.debounceMs} onChange={(e) => setSettings({ debounceMs: +e.target.value })} />
       </Row>
 
       <Row label="Phrase buttons" hint="Speak straight away, or add to the message so you can build a longer sentence.">
@@ -86,17 +86,17 @@ export function SettingsPanel() {
       </Row>
 
       <Row label="Switch scanning" hint="Highlights each button in turn. Press Space/Enter or your switch to choose.">
-        <input type="checkbox" className="h-6 w-6" checked={s.scanning} onChange={(e) => setSettings({ scanning: e.target.checked })} />
+        <input type="checkbox" className="h-7 w-7 accent-[var(--accent)]" checked={s.scanning} onChange={(e) => setSettings({ scanning: e.target.checked })} />
       </Row>
 
       {s.scanning && (
         <Row label={`Scan speed: ${(s.scanMs / 1000).toFixed(1)} s per button`}>
-          <input type="range" min={500} max={5000} step={100} value={s.scanMs} onChange={(e) => setSettings({ scanMs: +e.target.value })} />
+          <input type="range" className="h-10 accent-[var(--accent)]" min={500} max={5000} step={100} value={s.scanMs} onChange={(e) => setSettings({ scanMs: +e.target.value })} />
         </Row>
       )}
 
       <Row label="High contrast">
-        <input type="checkbox" className="h-6 w-6" checked={s.highContrast} onChange={(e) => setSettings({ highContrast: e.target.checked })} />
+        <input type="checkbox" className="h-7 w-7 accent-[var(--accent)]" checked={s.highContrast} onChange={(e) => setSettings({ highContrast: e.target.checked })} />
       </Row>
 
       <Row label="Patient name" hint="Shown on the urgent alert so staff know who is calling.">
@@ -104,7 +104,7 @@ export function SettingsPanel() {
       </Row>
 
       <Row label="AI sentence suggestions (optional)" hint="Needs Ollama running on the computer serving this app. Off by default; nothing is sent to the internet.">
-        <input type="checkbox" className="h-6 w-6" checked={s.aiSuggestions} onChange={(e) => setSettings({ aiSuggestions: e.target.checked })} />
+        <input type="checkbox" className="h-7 w-7 accent-[var(--accent)]" checked={s.aiSuggestions} onChange={(e) => setSettings({ aiSuggestions: e.target.checked })} />
       </Row>
     </div>
   );

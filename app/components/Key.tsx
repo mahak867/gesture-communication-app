@@ -3,29 +3,25 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../hooks/useApp';
 
+export type KeyVariant =
+  | 'default' | 'urgent' | 'yes' | 'no' | 'ghost' | 'soft' | 'selected' | 'accent'
+  | 'tint-needs' | 'tint-feel' | 'tint-talk' | 'tint-pain';
+
 interface Props {
   onActivate: () => void;
   children: ReactNode;
   label: string;
   className?: string;
-  variant?: 'default' | 'urgent' | 'yes' | 'no' | 'ghost' | 'selected';
+  variant?: KeyVariant;
+  pressed?: boolean;
 }
-
-const VARIANTS: Record<NonNullable<Props['variant']>, string> = {
-  default: 'bg-[var(--key)] text-[var(--fg)] border-[var(--line)]',
-  urgent: 'bg-[var(--urgent)] text-white border-transparent',
-  yes: 'bg-[var(--yes)] text-white border-transparent',
-  no: 'bg-[var(--no)] text-white border-transparent',
-  ghost: 'bg-transparent text-[var(--fg)] border-[var(--line)]',
-  selected: 'bg-[var(--accent)] text-white border-transparent',
-};
 
 /**
  * Accessible button honouring the user's activation method:
- * tap (on press), release (on lift — a slip off the key cancels), or dwell (hold).
- * Keyboard and switch users always activate with Enter/Space via onClick.
+ * tap (on press), release (on lift — sliding off cancels), or dwell (hold still).
+ * Keyboard, switch and glove users activate through onClick.
  */
-export function Key({ onActivate, children, label, className = '', variant = 'default' }: Props) {
+export function Key({ onActivate, children, label, className = '', variant = 'default', pressed }: Props) {
   const { settings, allowActivation } = useApp();
   const [dwell, setDwell] = useState(0);
   const timer = useRef<number | null>(null);
@@ -34,7 +30,7 @@ export function Key({ onActivate, children, label, className = '', variant = 'de
 
   const fire = () => {
     if (!allowActivation()) return;
-    navigator.vibrate?.(30);
+    navigator.vibrate?.(25);
     onActivate();
   };
 
@@ -60,10 +56,9 @@ export function Key({ onActivate, children, label, className = '', variant = 'de
     <button
       type="button"
       aria-label={label}
+      aria-pressed={pressed}
       data-scan
-      className={`key relative overflow-hidden rounded-2xl border-2 font-semibold select-none
-        focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]
-        active:scale-[0.97] transition-transform ${VARIANTS[variant]} ${className}`}
+      className={`key ${variant === 'default' ? '' : `key--${variant}`} ${className}`}
       onPointerDown={(e) => {
         pointerUsed.current = true;
         if (settings.activation === 'tap') fire();
@@ -82,9 +77,7 @@ export function Key({ onActivate, children, label, className = '', variant = 'de
         cancelDwell();
       }}
       onPointerCancel={cancelDwell}
-      onPointerLeave={() => settings.activation === 'dwell' && cancelDwell()}
       onClick={() => {
-        // Pointer input is handled above; clicks from keyboard/switch/scanning land here.
         if (pointerUsed.current) {
           pointerUsed.current = false;
           return;
@@ -92,9 +85,7 @@ export function Key({ onActivate, children, label, className = '', variant = 'de
         fire();
       }}
     >
-      {dwell > 0 && (
-        <span aria-hidden className="absolute inset-x-0 bottom-0 h-1.5 bg-[var(--focus)]" style={{ width: `${dwell * 100}%` }} />
-      )}
+      {dwell > 0 && <span aria-hidden className="dwell-bar" style={{ transform: `scaleX(${dwell})` }} />}
       {children}
     </button>
   );

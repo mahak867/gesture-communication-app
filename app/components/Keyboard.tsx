@@ -20,9 +20,9 @@ export function Keyboard() {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-4 gap-2" aria-label="Word suggestions">
+      <div className="grid min-h-[3.25rem] grid-cols-4 gap-2" aria-label="Word suggestions">
         {words.map((w) => (
-          <Key key={w} label={`Suggestion ${w}`} variant="ghost" className="py-3 text-[1.1em]" onActivate={() => setMessage((m) => applySuggestion(m, w))}>
+          <Key key={w} label={`Suggestion ${w}`} variant="soft" className="py-3 text-[1.1em]" onActivate={() => setMessage((m) => applySuggestion(m, w))}>
             {w}
           </Key>
         ))}
@@ -31,7 +31,7 @@ export function Keyboard() {
       {ai.length > 0 && (
         <div className="flex flex-col gap-2" aria-label="Sentence suggestions from local AI">
           {ai.map((s) => (
-            <Key key={s} label={`Use sentence: ${s}`} variant="ghost" className="px-3 py-2 text-left" onActivate={() => setMessage(s)}>
+            <Key key={s} label={`Use sentence: ${s}`} variant="tint-talk" className="px-3 py-2.5 text-left" onActivate={() => setMessage(s)}>
               ✨ {s}
             </Key>
           ))}
@@ -41,7 +41,7 @@ export function Keyboard() {
       {LAYOUTS[layout].map((row) => (
         <div key={row} className="flex gap-1.5">
           {[...row].map((c) => (
-            <Key key={c} label={c} className="flex-1 py-4 text-[1.4em] uppercase" onActivate={() => type(c)}>
+            <Key key={c} label={c} className="min-w-0 flex-1 py-4 text-[1.35em] uppercase" onActivate={() => type(c)}>
               {c}
             </Key>
           ))}
@@ -49,7 +49,7 @@ export function Keyboard() {
       ))}
 
       <div className="grid grid-cols-[1fr_3fr_1fr_1fr] gap-1.5">
-        <Key label="Switch keyboard layout" className="py-3" onActivate={() => setLayout((l) => (l === 'abc' ? 'qwerty' : 'abc'))}>
+        <Key label="Switch keyboard layout" className="py-3 text-[0.8em]" onActivate={() => setLayout((l) => (l === 'abc' ? 'qwerty' : 'abc'))}>
           {layout === 'abc' ? 'QWERTY' : 'ABC'}
         </Key>
         <Key label="Space" className="py-3" onActivate={() => type(' ')}>
@@ -69,7 +69,7 @@ export function Keyboard() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={2}
-          className="rounded-xl border-2 border-[var(--line)] bg-[var(--panel)] p-3 text-[1.2em] text-[var(--fg)]"
+          className="card p-3 text-[var(--fg)]" autoCapitalize="sentences" enterKeyHint="done"
         />
       </label>
     </div>

@@ -14,15 +14,29 @@ import { GloveBar } from './components/GloveConnect';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AlarmOverlay, History, PartnerView } from './components/Overlays';
 
-type Tab = (typeof BOARDS)[number]['id'] | 'pain' | 'keyboard' | 'hands' | 'history' | 'settings';
+type Tab = 'needs' | 'feel' | 'talk' | 'pain' | 'keyboard' | 'hands' | 'history' | 'settings';
 
-const EXTRA_TABS: { id: Tab; icon: string; en: string; hi: string }[] = [
+// Bottom bar: the five things used all day, in the thumb zone.
+const MAIN_TABS: { id: Tab; icon: string; en: string; hi: string }[] = [
+  { id: 'needs', icon: '🙋', en: 'Needs', hi: 'ज़रूरतें' },
+  { id: 'feel', icon: '💬', en: 'Feelings', hi: 'भावनाएँ' },
+  { id: 'talk', icon: '🗣️', en: 'Talk', hi: 'बातचीत' },
   { id: 'pain', icon: '🤕', en: 'Pain', hi: 'दर्द' },
   { id: 'keyboard', icon: '⌨️', en: 'Type', hi: 'लिखें' },
-  { id: 'hands', icon: '📷', en: 'Camera', hi: 'कैमरा' },
-  { id: 'history', icon: '🕘', en: 'History', hi: 'इतिहास' },
-  { id: 'settings', icon: '⚙️', en: 'Settings', hi: 'सेटिंग्स' },
 ];
+
+// Header: occasional screens, mostly used by carers.
+const TOOL_TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: 'history', icon: '🕘', label: 'History' },
+  { id: 'hands', icon: '📷', label: 'Camera gestures' },
+  { id: 'settings', icon: '⚙️', label: 'Settings' },
+];
+
+const TITLES: Partial<Record<Tab, { en: string; hi: string }>> = {
+  history: { en: 'History', hi: 'इतिहास' },
+  hands: { en: 'Camera gestures', hi: 'कैमरा इशारे' },
+  settings: { en: 'Settings', hi: 'सेटिंग्स' },
+};
 
 function Shell() {
   const { settings } = useApp();
@@ -37,48 +51,67 @@ function Shell() {
     root.lang = settings.lang;
   }, [settings.scale, settings.highContrast, settings.lang]);
 
-  const tabs = [
-    ...BOARDS.map((b) => ({ id: b.id as Tab, icon: b.icon, en: b.title.en, hi: b.title.hi })),
-    ...EXTRA_TABS,
-  ];
   const board = BOARDS.find((b) => b.id === tab);
+  const title = TITLES[tab];
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-3 p-3 sm:p-4">
-      <GloveBar />
+    <div className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(var(--nav-h)+env(safe-area-inset-bottom)+1rem)] sm:px-5">
+      <header className="flex flex-wrap items-center gap-2 gap-y-1">
+        <GloveBar />
+        <div className="ml-auto flex gap-2">
+          {TOOL_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              data-scan
+              className="icon-btn"
+              aria-label={t.label}
+              aria-pressed={tab === t.id}
+              onClick={() => setTab(tab === t.id ? 'needs' : t.id)}
+            >
+              <span aria-hidden>{t.icon}</span>
+            </button>
+          ))}
+        </div>
+      </header>
+
       <QuickBar />
       <MessageBar onShow={() => setShowPartner(true)} />
 
-      <nav aria-label="Boards" className="flex gap-2 overflow-x-auto pb-1">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            data-scan
-            aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 rounded-xl border-2 px-3 py-2 font-semibold ${
-              tab === t.id ? 'border-transparent bg-[var(--accent)] text-white' : 'border-[var(--line)] bg-[var(--panel)]'
-            }`}
-          >
-            <span aria-hidden className="mr-1">{t.icon}</span>
-            {t[settings.lang]}
-          </button>
-        ))}
-      </nav>
-
-      <main className="flex-1">
-        {board && <PhraseBoard board={board} />}
-        {tab === 'pain' && <PainBoard />}
-        {tab === 'keyboard' && <Keyboard />}
-        {tab === 'hands' && <CameraGestures />}
-        {tab === 'history' && <History />}
-        {tab === 'settings' && <SettingsPanel />}
+      <main className="flex-1 pt-1">
+        {title && <h1 className="mb-3 text-[1.35em] font-bold">{title[settings.lang]}</h1>}
+        <div key={tab} className="fade-in">
+          {board && <PhraseBoard board={board} />}
+          {tab === 'pain' && <PainBoard />}
+          {tab === 'keyboard' && <Keyboard />}
+          {tab === 'hands' && <CameraGestures />}
+          {tab === 'history' && <History />}
+          {tab === 'settings' && <SettingsPanel />}
+        </div>
+        {tab === 'settings' && (
+          <p className="mt-6 text-center text-[0.85em] text-[var(--muted)]">
+            Works offline · Everything stays on this device · <Link className="underline" href="/privacy">Privacy</Link>
+          </p>
+        )}
       </main>
 
-      <footer className="pt-2 text-center text-[0.8em] text-[var(--muted)]">
-        Works offline · Everything stays on this device · <Link className="underline" href="/privacy">Privacy</Link>
-      </footer>
+      <nav aria-label="Boards" className="bottom-nav">
+        <div className="mx-auto grid max-w-5xl grid-cols-5 gap-1">
+          {MAIN_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              data-scan
+              className="tab"
+              aria-current={tab === t.id ? 'page' : undefined}
+              onClick={() => setTab(t.id)}
+            >
+              <span aria-hidden className="tab-icon">{t.icon}</span>
+              {t[settings.lang]}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {showPartner && <PartnerView onClose={() => setShowPartner(false)} />}
       <AlarmOverlay />

@@ -110,7 +110,7 @@ export function CameraGestures() {
           setStatus(running ? 'off' : 'loading');
           setEnabled(!running);
         }}
-        className="rounded-2xl bg-[var(--accent)] px-4 py-4 text-[1.2em] font-bold text-white"
+        className="key key--accent py-4 text-[1.15em]"
       >
         {running ? '⏹ Stop camera' : '📷 Start hands-free gestures'}
       </button>
@@ -131,7 +131,7 @@ export function CameraGestures() {
 
       <ul className="grid gap-1 text-[1em]">
         {GESTURES.map((x) => (
-          <li key={x.category} className="rounded-xl bg-[var(--panel)] px-3 py-2">
+          <li key={x.category} className="card px-3 py-2.5">
             <span aria-hidden className="mr-2 text-xl">{x.icon}</span>
             {x.label}
           </li>
